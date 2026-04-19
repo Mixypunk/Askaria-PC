@@ -908,8 +908,10 @@ class SwingApiService {
 
   // ── ADMIN — SCAN ────────────────────────────────────────────────────────
   Future<void> scanLibrary({bool incremental = false}) async {
-    final uri = Uri.parse('$_baseUrl/scan');
-    await _authedPost(uri, body: json.encode({'incremental': incremental}));
+    final uri = Uri.parse('$_baseUrl/scan/start').replace(
+      queryParameters: {'incremental': incremental.toString()},
+    );
+    await _authedPost(uri);
   }
 
   // ── ADMIN — USERS ──────────────────────────────────────────────────────
