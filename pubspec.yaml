@@ -1,0 +1,53 @@
+name: askaria_pc
+description: Askaria — Votre musique, chez vous. (Desktop Windows)
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Audio (natif Windows)
+  just_audio: ^0.9.36
+
+  # HTTP & API
+  http: ^1.2.0
+  dio: ^5.4.0
+
+  # State management
+  provider: ^6.1.1
+
+  # Storage
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.2
+
+  # UI & artwork colors
+  palette_generator: ^0.3.3
+
+  # Package info (version) & auto-update
+  package_info_plus: ^8.0.0
+
+  # Window management (taille min, custom titlebar)
+  window_manager: ^0.3.8
+
+  # Raccourcis clavier média Windows (touches Lecture/Pause/Suivant)
+  smtc_windows: ^0.1.1+1
+
+  # Ouverture liens web externes
+  url_launcher: ^6.2.6
+
+  cupertino_icons: ^1.0.6
+  connectivity_plus: ^7.1.0
+  cached_network_image: ^3.4.1
+  just_audio_windows: ^0.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
