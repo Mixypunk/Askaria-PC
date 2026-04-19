@@ -1,38 +1,94 @@
 name: Build & Release Windows App
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - 'v*' # Trigger on tags like v1.0.0
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      # ── Génère la version automatiquement (1.0.<run_number>) ──────────
+      - name: Generate version
+        id: version
+        shell: bash
+        run: |
+          VERSION="1.0.${{ github.run_number }}"
+          TAG="v$VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "Auto-generated version: $VERSION"
+
+      # ── Met à jour pubspec.yaml avec la nouvelle version ──────────────
+      - name: Update pubspec.yaml version
+        shell: bash
+        run: |
+          sed -i "s/^version:.*/version: ${{ steps.version.outputs.VERSION }}+${{ github.run_number }}/" pubspec.yaml
+          echo "pubspec.yaml updated:"
+          grep '^version:' pubspec.yaml
+
+      # ── Met à jour installer.iss avec la nouvelle version ─────────────
+      - name: Update installer.iss version
+        shell: bash
+        run: |
+          sed -i "s/#define MyAppVersion.*/#define MyAppVersion \"${{ steps.version.outputs.VERSION }}\"/" windows/installer.iss
+          echo "installer.iss updated:"
+          grep 'MyAppVersion' windows/installer.iss
+
+      # ── Flutter ────────────────────────────────────────────────────────
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          
+
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build Windows app
         run: flutter build windows --release
 
+      # ── Inno Setup ────────────────────────────────────────────────────
       - name: Compile Inno Setup Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: windows/installer.iss
-          
-      - name: Create Release
+
+      # ── Création du tag Git ───────────────────────────────────────────
+      - name: Create Git tag
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.TAG }}"
+          git push origin "${{ steps.version.outputs.TAG }}"
+
+      # ── Création de la Release GitHub ─────────────────────────────────
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.version.outputs.TAG }}
+          name: "Askaria PC ${{ steps.version.outputs.TAG }}"
+          body: |
+            ## Askaria PC ${{ steps.version.outputs.TAG }}
+            
+            **Commit :** ${{ github.sha }}
+            **Build :** #${{ github.run_number }}
+
+            ### Installation
+            Télécharge et lance **Askaria-Setup.exe** pour installer l'application.
           files: build/windows/installer/Askaria-Setup.exe
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
