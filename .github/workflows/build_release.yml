@@ -60,7 +60,7 @@ jobs:
       - name: Verify build output
         shell: pwsh
         run: |
-          $exePath = "build\windows\x64\runner\Release\askaria_pc.exe"
+          $exePath = "build\windows\x64\runner\Release\askaria_desktop.exe"
           Write-Host "=== Contenu du dossier Release ==="
           if (Test-Path "build\windows\x64\runner\Release") {
             Get-ChildItem "build\windows\x64\runner\Release" | Format-Table Name, Length
