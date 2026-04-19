@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../main.dart'; // Palette Sp
+import '../../main.dart';
 import '../../core/services/api_service.dart';
 import '../../core/models/album.dart';
 import '../../core/providers/player_provider.dart';
@@ -18,6 +18,8 @@ class _HomePageState extends State<HomePage> {
   final _api = SwingApiService();
   List<Playlist> _playlists = [];
   List<Album> _recentAlbums = [];
+  List<Artist> _artists = [];
+  Map<String, dynamic> _stats = {};
   bool _loading = true;
   Album? _selectedAlbum;
 
@@ -32,17 +34,28 @@ class _HomePageState extends State<HomePage> {
       final results = await Future.wait([
         _api.getPlaylists(),
         _api.getAlbums(limit: 12),
+        _api.getArtists(limit: 12),
+        _api.getStatsOverview(),
       ]);
       if (mounted) {
         setState(() {
-          _playlists = (results[0] as List).cast<Playlist>();
+          _playlists    = (results[0] as List).cast<Playlist>();
           _recentAlbums = (results[1] as List).cast<Album>();
+          _artists      = (results[2] as List).cast<Artist>();
+          _stats        = results[3] as Map<String, dynamic>;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Bonjour 👋';
+    if (h < 18) return 'Bon après-midi 👋';
+    return 'Bonsoir 👋';
   }
 
   @override
@@ -63,62 +76,76 @@ class _HomePageState extends State<HomePage> {
       ]);
     }
 
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Sp.ac));
-    }
+    if (_loading) return const Center(child: CircularProgressIndicator(color: Sp.ac));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(28, 26, 28, 110),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // En-tête
-          const Padding(
-            padding: EdgeInsets.only(bottom: 22),
-            child: Text(
-              'Bonne journée',
-              style: TextStyle(fontFamily: 'Segoe UI', fontSize: 24, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3),
-            ),
+          // Greeting
+          Padding(
+            padding: const EdgeInsets.only(bottom: 22),
+            child: Text(_greeting(),
+                style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 24, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3)),
           ),
 
-          if (_playlists.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.only(bottom: 13),
-              child: Text('Vos Playlists', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 17, fontWeight: FontWeight.w700, color: Sp.t1)),
-            ),
+          // Stats
+          if (_stats.isNotEmpty) ...[
+            _StatsRow(stats: _stats),
+            const SizedBox(height: 26),
+          ],
+
+          // Albums récents
+          if (_recentAlbums.isNotEmpty) ...[
+            const _SectionHeader(title: 'Albums récents'),
+            const SizedBox(height: 13),
             Wrap(
               spacing: 13, runSpacing: 13,
-              children: _playlists.map((pl) {
-                final artUrl = pl.imageHash != null ? '${_api.baseUrl}/img/playlist/${pl.imageHash}.webp' : null;
+              children: _recentAlbums.map((album) => WebCard(
+                title: album.title,
+                subtitle: album.artist,
+                imageUrl: _api.getArtworkUrl(album.image.isNotEmpty ? album.image : album.hash),
+                onTap: () => setState(() => _selectedAlbum = album),
+              )).toList(),
+            ),
+            const SizedBox(height: 28),
+          ],
+
+          // Artistes
+          if (_artists.isNotEmpty) ...[
+            const _SectionHeader(title: 'Artistes'),
+            const SizedBox(height: 13),
+            Wrap(
+              spacing: 13, runSpacing: 13,
+              children: _artists.map((a) => WebCard(
+                title: a.name,
+                subtitle: '${a.albumCount} album${a.albumCount != 1 ? 's' : ''}',
+                imageUrl: '${_api.baseUrl}/img/artist/small/${a.image}',
+                isCircular: true,
+                onTap: () {},
+              )).toList(),
+            ),
+            const SizedBox(height: 28),
+          ],
+
+          // Playlists
+          if (_playlists.isNotEmpty) ...[
+            const _SectionHeader(title: 'Vos Playlists'),
+            const SizedBox(height: 13),
+            Wrap(
+              spacing: 13, runSpacing: 13,
+              children: _playlists.take(6).map((pl) {
                 return WebCard(
                   title: pl.name,
                   subtitle: '${pl.trackCount} titre${pl.trackCount > 1 ? 's' : ''}',
-                  imageUrl: artUrl,
+                  imageUrl: null,
                   onTap: () async {
                     final tracks = await _api.getPlaylistTracks(pl.id);
                     if (tracks.isNotEmpty && context.mounted) {
                       context.read<PlayerProvider>().playSong(tracks.first, queue: tracks);
                     }
                   },
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 28),
-          ],
-
-          if (_recentAlbums.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.only(bottom: 13),
-              child: Text('Albums Récents', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 17, fontWeight: FontWeight.w700, color: Sp.t1)),
-            ),
-            Wrap(
-              spacing: 13, runSpacing: 13,
-              children: _recentAlbums.map((album) {
-                return WebCard(
-                  title: album.title,
-                  subtitle: album.artist,
-                  imageUrl: _api.getArtworkUrl(album.image.isNotEmpty ? album.image : album.hash),
-                  onTap: () => setState(() => _selectedAlbum = album),
                 );
               }).toList(),
             ),
@@ -129,6 +156,66 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+class _StatsRow extends StatelessWidget {
+  final Map<String, dynamic> stats;
+  const _StatsRow({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _StatItem(label: 'Titres', value: '${stats['total_songs'] ?? stats['songs'] ?? '—'}'),
+      _StatItem(label: 'Albums', value: '${stats['total_albums'] ?? stats['albums'] ?? '—'}'),
+      _StatItem(label: 'Artistes', value: '${stats['total_artists'] ?? stats['artists'] ?? '—'}'),
+      _StatItem(label: 'Heures', value: '${stats['total_hours'] ?? stats['hours'] ?? '—'}'),
+    ];
+    return Row(
+      children: items.map((item) => Expanded(
+        child: _StatCard(item: item),
+      )).toList().expand((e) => [e, const SizedBox(width: 11)]).toList()..removeLast(),
+    );
+  }
+}
+
+class _StatItem {
+  final String label, value;
+  const _StatItem({required this.label, required this.value});
+}
+
+class _StatCard extends StatelessWidget {
+  final _StatItem item;
+  const _StatCard({required this.item});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Sp.bg2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Sp.bd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(item.value, style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 26, fontWeight: FontWeight.w800, color: Sp.ac)),
+          const SizedBox(height: 2),
+          Text(item.label, style: const TextStyle(color: Sp.t2, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader({required this.title});
+  @override
+  Widget build(BuildContext context) {
+    return Text(title,
+        style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 17, fontWeight: FontWeight.w700, color: Sp.t1));
+  }
+}
+
+// WebCard — identique à avant mais amélioré
 class WebCard extends StatefulWidget {
   final String title;
   final String subtitle;
@@ -137,7 +224,8 @@ class WebCard extends StatefulWidget {
   final bool isCircular;
 
   const WebCard({
-    super.key, required this.title, required this.subtitle, this.imageUrl, required this.onTap, this.isCircular = false,
+    super.key, required this.title, required this.subtitle, this.imageUrl,
+    required this.onTap, this.isCircular = false,
   });
 
   @override
@@ -149,6 +237,7 @@ class _WebCardState extends State<WebCard> {
 
   @override
   Widget build(BuildContext context) {
+    final api = SwingApiService();
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -161,16 +250,17 @@ class _WebCardState extends State<WebCard> {
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             color: _hover ? Sp.bg3 : Sp.bg2,
-            borderRadius: BorderRadius.circular(10), // --r: 10px
-            border: Border.all(color: _hover ? Sp.bd : Colors.transparent, width: 1),
-            boxShadow: _hover ? [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 2))] : [],
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _hover ? Sp.bd : Colors.transparent),
+            boxShadow: _hover
+                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 2))]
+                : [],
           ),
           child: Column(
             crossAxisAlignment: widget.isCircular ? CrossAxisAlignment.center : CrossAxisAlignment.start,
             children: [
-              // Image Container
               Container(
-                width: 129, height: 129, // 155 - 2*13 padding
+                width: 129, height: 129,
                 margin: const EdgeInsets.only(bottom: 11),
                 decoration: BoxDecoration(
                   color: Sp.bg4,
@@ -180,21 +270,20 @@ class _WebCardState extends State<WebCard> {
                 clipBehavior: Clip.antiAlias,
                 child: Stack(
                   children: [
-                    // Image with scale animation
                     AnimatedScale(
                       scale: _hover ? 1.06 : 1.0,
                       duration: const Duration(milliseconds: 300),
-                      child: widget.imageUrl != null 
-                        ? CachedNetworkImage(
-                            imageUrl: widget.imageUrl!,
-                            width: 129, height: 129,
-                            fit: BoxFit.cover,
-                            httpHeaders: SwingApiService().authHeaders,
-                            errorWidget: (_, __, ___) => const Center(child: Icon(Icons.music_note, color: Sp.t3, size: 40)),
-                          )
-                        : const Center(child: Icon(Icons.queue_music, color: Sp.t3, size: 40)),
+                      child: widget.imageUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: widget.imageUrl!,
+                              width: 129, height: 129,
+                              fit: BoxFit.cover,
+                              httpHeaders: api.authHeaders,
+                              errorWidget: (_, __, ___) => const Center(
+                                  child: Icon(Icons.music_note_rounded, color: Sp.t3, size: 40)),
+                            )
+                          : const Center(child: Icon(Icons.queue_music_rounded, color: Sp.t3, size: 40)),
                     ),
-                    // Hover Play Button Overlay
                     Positioned(
                       bottom: 7, right: 7,
                       child: AnimatedOpacity(
@@ -219,20 +308,13 @@ class _WebCardState extends State<WebCard> {
                   ],
                 ),
               ),
-              // Text Content
-              Text(
-                widget.title,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                textAlign: widget.isCircular ? TextAlign.center : TextAlign.left,
-                style: const TextStyle(color: Sp.t1, fontSize: 13, fontWeight: FontWeight.w500),
-              ),
+              Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  textAlign: widget.isCircular ? TextAlign.center : TextAlign.left,
+                  style: const TextStyle(color: Sp.t1, fontSize: 13, fontWeight: FontWeight.w500)),
               const SizedBox(height: 3),
-              Text(
-                widget.subtitle,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                textAlign: widget.isCircular ? TextAlign.center : TextAlign.left,
-                style: const TextStyle(color: Sp.t2, fontSize: 11.5),
-              ),
+              Text(widget.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  textAlign: widget.isCircular ? TextAlign.center : TextAlign.left,
+                  style: const TextStyle(color: Sp.t2, fontSize: 11.5)),
             ],
           ),
         ),

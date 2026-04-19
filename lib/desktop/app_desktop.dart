@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-import '../../main.dart'; // Import pour Palette Sp
+import '../../main.dart';
 import 'components/sidebar.dart';
 import 'components/player_bar.dart';
+import 'components/lyrics_overlay.dart';
 import 'pages/home_page.dart';
 import 'pages/search_page.dart';
+import 'pages/songs_page.dart';
 import 'pages/library_page.dart';
+import 'pages/artists_page.dart';
+import 'pages/genres_page.dart';
+import 'pages/decades_page.dart';
+import 'pages/favourites_page.dart';
+import 'pages/playlists_page.dart';
+import 'pages/recently_played_page.dart';
+import 'pages/profile_page.dart';
+import 'pages/admin_page.dart';
 import 'pages/settings_page.dart';
 import '../core/services/updater_service.dart';
 import 'components/updater_dialog.dart';
@@ -18,7 +28,8 @@ class AppDesktop extends StatefulWidget {
 }
 
 class _AppDesktopState extends State<AppDesktop> {
-  int _selectedIndex = 0;
+  NavDest _currentDest = NavDest.home;
+  bool _showLyrics = false;
 
   @override
   void initState() {
@@ -27,7 +38,6 @@ class _AppDesktopState extends State<AppDesktop> {
   }
 
   Future<void> _checkUpdates() async {
-    // Vérification silencieuse 3s après le démarrage pour ne pas ralentir le rendu initial
     await Future.delayed(const Duration(seconds: 3));
     final updateUrl = await UpdaterService.checkForUpdate();
     if (updateUrl != null && mounted) {
@@ -35,12 +45,24 @@ class _AppDesktopState extends State<AppDesktop> {
     }
   }
 
-  final List<Widget> _pages = [
-    const HomePage(),
-    const SearchPage(),
-    const LibraryPage(),
-    const SettingsPage(),
-  ];
+  Widget _buildPage(NavDest dest) {
+    switch (dest) {
+      case NavDest.home:        return const HomePage();
+      case NavDest.search:      return const SearchPage();
+      case NavDest.songs:       return const SongsPage();
+      case NavDest.albums:      return const LibraryPage();
+      case NavDest.artists:     return const ArtistsPage();
+      case NavDest.genres:      return const GenresPage();
+      case NavDest.decades:     return const DecadesPage();
+      case NavDest.favourites:  return const FavouritesPage();
+      case NavDest.playlists:   return const PlaylistsPage();
+      case NavDest.discovery:   return const PlaylistsPage(); // handled inside
+      case NavDest.recentlyPlayed: return const RecentlyPlayedPage();
+      case NavDest.profile:     return const ProfilePage();
+      case NavDest.admin:       return const AdminPage();
+      case NavDest.settings:    return const SettingsPage();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,34 +78,50 @@ class _AppDesktopState extends State<AppDesktop> {
           ),
         ),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 1. Sidebar
-                Sidebar(
-                  selectedIndex: _selectedIndex,
-                  onItemSelected: (idx) => setState(() => _selectedIndex = idx),
-                ),
-
-                // 2. Zone principale avec contenu
-                Expanded(
-                  child: Container(
-                    color: Sp.bg0,
-                    child: IndexedStack(
-                      index: _selectedIndex,
-                      children: _pages,
+          Column(
+            children: [
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Sidebar
+                    Sidebar(
+                      selectedDest: _currentDest,
+                      onDestSelected: (dest) => setState(() => _currentDest = dest),
                     ),
-                  ),
+                    // Main content
+                    Expanded(
+                      child: Container(
+                        color: Sp.bg0,
+                        // Use AnimatedSwitcher for smooth page transitions
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: KeyedSubtree(
+                            key: ValueKey(_currentDest),
+                            child: _buildPage(_currentDest),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              // Player Bar
+              PlayerBar(
+                onLyricsPressed: () => setState(() => _showLyrics = !_showLyrics),
+              ),
+            ],
           ),
 
-          // 3. Player Bar (toujours visible en bas)
-          const PlayerBar(),
+          // Lyrics Overlay
+          if (_showLyrics)
+            Positioned.fill(
+              child: LyricsOverlay(
+                onClose: () => setState(() => _showLyrics = false),
+              ),
+            ),
         ],
       ),
     );

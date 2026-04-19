@@ -837,4 +837,119 @@ class SwingApiService {
       if (file.existsSync()) await file.delete();
     } catch (_) {}
   }
+
+  // ── GENRES ─────────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getGenres() async {
+    try {
+      final r = await _authedGet(Uri.parse('$_baseUrl/genres'));
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body) as Map<String, dynamic>;
+        final genres = data['genres'] ?? data['items'] ?? [];
+        return List<Map<String, dynamic>>.from(genres);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<Song>> getGenreTracks(String genre, {int limit = 200}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/genres/${Uri.encodeComponent(genre)}/tracks')
+          .replace(queryParameters: {'limit': '$limit'});
+      final r = await _authedGet(uri);
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body) as Map<String, dynamic>;
+        final tracks = data['tracks'] ?? data['items'] ?? [];
+        return (tracks as List).map((e) => Song.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // ── DECADES ────────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getDecades() async {
+    try {
+      final r = await _authedGet(Uri.parse('$_baseUrl/decades'));
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body) as Map<String, dynamic>;
+        final decades = data['decades'] ?? data['items'] ?? [];
+        return List<Map<String, dynamic>>.from(decades);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<Song>> getDecadeTracks(String year, {int limit = 200}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/decades/$year/tracks')
+          .replace(queryParameters: {'limit': '$limit'});
+      final r = await _authedGet(uri);
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body) as Map<String, dynamic>;
+        final tracks = data['tracks'] ?? data['items'] ?? [];
+        return (tracks as List).map((e) => Song.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // ── PUBLIC PLAYLISTS ───────────────────────────────────────────────────
+  Future<List<Playlist>> getPublicPlaylists() async {
+    try {
+      final uri = Uri.parse('$_baseUrl/playlists/public');
+      final r = await _authedGet(uri);
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body) as Map<String, dynamic>;
+        final items = data['data'] ?? data['items'] ?? [];
+        return (items as List).map((e) => Playlist.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // ── ADMIN — SCAN ────────────────────────────────────────────────────────
+  Future<void> scanLibrary({bool incremental = false}) async {
+    final uri = Uri.parse('$_baseUrl/scan');
+    await _authedPost(uri, body: json.encode({'incremental': incremental}));
+  }
+
+  // ── ADMIN — USERS ──────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getAdminUsers() async {
+    try {
+      final r = await _authedGet(Uri.parse('$_baseUrl/users/list'));
+      if (r.statusCode == 200) {
+        final data = json.decode(r.body) as Map<String, dynamic>;
+        return List<Map<String, dynamic>>.from(data['users'] ?? data['items'] ?? []);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<bool> createUser(String username, String password, String role) async {
+    try {
+      final r = await _authedPost(
+        Uri.parse('$_baseUrl/users/new'),
+        body: json.encode({'username': username, 'password': password, 'role': role}),
+      );
+      return r.statusCode == 200 || r.statusCode == 201;
+    } catch (_) { return false; }
+  }
+
+  Future<bool> deleteUser(String userId) async {
+    try {
+      final r = await _authedPost(
+        Uri.parse('$_baseUrl/users/$userId/delete'),
+        body: json.encode({}),
+      );
+      return r.statusCode == 200;
+    } catch (_) { return false; }
+  }
+
+  // ── LAST.FM STATUS ─────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> getLastFmStatus() async {
+    try {
+      final r = await _authedGet(Uri.parse('$_baseUrl/lastfm/status'));
+      if (r.statusCode == 200) return json.decode(r.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return {'status': 'Non configuré'};
+  }
 }
