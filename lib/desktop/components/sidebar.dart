@@ -6,10 +6,10 @@ class Sidebar extends StatelessWidget {
   final Function(int) onItemSelected;
 
   const Sidebar({
-    Key? key,
+    super.key,
     required this.selectedIndex,
     required this.onItemSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,22 +23,30 @@ class Sidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 35), // Espace draggable
-          
+
           // Logo
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
             child: Row(
               children: [
                 Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(color: Sp.ac, borderRadius: BorderRadius.circular(7)),
-                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                      color: Sp.ac, borderRadius: BorderRadius.circular(7)),
+                  child: const Icon(Icons.play_arrow_rounded,
+                      color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 9),
                 RichText(
                   text: const TextSpan(
                     text: 'Askaria',
-                    style: TextStyle(fontFamily: 'Segoe UI', fontSize: 17, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3),
+                    style: TextStyle(
+                        fontFamily: 'Segoe UI',
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: Sp.t1,
+                        letterSpacing: -0.3),
                     children: [
                       TextSpan(text: '.', style: TextStyle(color: Sp.ac)),
                     ],
@@ -47,7 +55,7 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Column(
@@ -81,7 +89,12 @@ class Sidebar extends StatelessWidget {
               children: [
                 const Padding(
                   padding: EdgeInsets.fromLTRB(10, 4, 10, 5),
-                  child: Text('BIBLIOTHÈQUE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Sp.t4, letterSpacing: 1.0)),
+                  child: Text('BIBLIOTHÈQUE',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Sp.t4,
+                          letterSpacing: 1.0)),
                 ),
                 _SidebarItem(
                   icon: Icons.library_music_rounded,
@@ -126,19 +139,20 @@ class _SidebarItemState extends State<_SidebarItem> {
 
   @override
   Widget build(BuildContext context) {
-    VoidCallback? onEnter = (_) => setState(() => _hover = true);
-    VoidCallback? onExit = (_) => setState(() => _hover = false);
-    
     final color = widget.isSelected ? Sp.t1 : (_hover ? Sp.t1 : Sp.t3);
-    final bgColor = widget.isSelected ? Colors.white.withOpacity(0.08) : (_hover ? Colors.white.withOpacity(0.04) : Colors.transparent);
+    final bgColor = widget.isSelected
+        ? Colors.white.withValues(alpha: 0.08)
+        : (_hover ? Colors.white.withValues(alpha: 0.04) : Colors.transparent);
 
     return MouseRegion(
-      onEnter: onEnter, onExit: onExit,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
         child: Container(
-          decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(7)),
+          decoration: BoxDecoration(
+              color: bgColor, borderRadius: BorderRadius.circular(7)),
           margin: const EdgeInsets.only(bottom: 1),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Stack(
@@ -149,10 +163,12 @@ class _SidebarItemState extends State<_SidebarItem> {
                 Positioned(
                   left: -10,
                   child: Container(
-                    width: 2.5, height: 15,
+                    width: 2.5,
+                    height: 15,
                     decoration: const BoxDecoration(
                       color: Sp.ac,
-                      borderRadius: BorderRadius.horizontal(right: Radius.circular(2)),
+                      borderRadius:
+                          BorderRadius.horizontal(right: Radius.circular(2)),
                     ),
                   ),
                 ),
@@ -164,7 +180,8 @@ class _SidebarItemState extends State<_SidebarItem> {
                     widget.label,
                     style: TextStyle(
                       color: color,
-                      fontWeight: widget.isSelected ? FontWeight.w500 : FontWeight.w400,
+                      fontWeight:
+                          widget.isSelected ? FontWeight.w500 : FontWeight.w400,
                       fontSize: 12.5,
                     ),
                   ),

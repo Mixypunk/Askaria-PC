@@ -11,7 +11,7 @@ import 'album_detail_page.dart';
 import 'home_page.dart'; // Pour WebCard
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({Key? key}) : super(key: key);
+  const SearchPage({super.key});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -69,7 +69,7 @@ class _SearchPageState extends State<SearchPage> {
         Positioned(
           top: 16, left: 16,
           child: Container(
-            decoration: BoxDecoration(color: Sp.bg0.withOpacity(0.6), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: Sp.bg0.withValues(alpha: 0.6), shape: BoxShape.circle),
             child: IconButton(
               icon: const Icon(Icons.arrow_back, color: Sp.t1),
               onPressed: () => setState(() => _selectedAlbum = null),
@@ -115,7 +115,7 @@ class _SearchPageState extends State<SearchPage> {
         ),
 
         if (_loading)
-          Expanded(child: Center(child: CircularProgressIndicator(color: Sp.ac)))
+          const Expanded(child: Center(child: CircularProgressIndicator(color: Sp.ac)))
         else if (_query.isEmpty)
           const Expanded(child: _EmptySearchState())
         else
@@ -213,12 +213,12 @@ class _SongRowState extends State<_SongRow> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
-        child: Container(
+        child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           margin: const EdgeInsets.only(bottom: 2),
           decoration: BoxDecoration(
-            color: widget.isPlaying ? Sp.ac4 : (_hover ? Colors.white.withOpacity(0.04) : Colors.transparent),
+            color: widget.isPlaying ? Sp.ac4 : (_hover ? Colors.white.withValues(alpha: 0.04) : Colors.transparent),
             borderRadius: BorderRadius.circular(7),
           ),
           child: Row(
@@ -250,11 +250,10 @@ class _SongRowState extends State<_SongRow> {
                         fontSize: 13.5,
                       ),
                     ),
-                    if (widget.song.artist != null)
-                      Text(
-                        widget.song.artist!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Sp.t2, fontSize: 11.5),
-                      ),
+                    Text(
+                      widget.song.artist, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Sp.t2, fontSize: 11.5),
+                    ),
                   ],
                 ),
               ),
@@ -281,10 +280,10 @@ class _EmptySearchState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(Icons.search_rounded, color: Sp.bg4, size: 80),
           SizedBox(height: 16),
           Text('Explorez la galaxie musicale', style: TextStyle(color: Sp.t3, fontSize: 15)),

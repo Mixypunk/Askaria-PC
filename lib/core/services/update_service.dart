@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -75,8 +74,12 @@ class UpdateService {
     try {
       final l = latest.split('+').first.split('.').map(int.parse).toList();
       final c = current.split('+').first.split('.').map(int.parse).toList();
-      while (l.length < 3) l.add(0);
-      while (c.length < 3) c.add(0);
+      while (l.length < 3) {
+        l.add(0);
+      }
+      while (c.length < 3) {
+        c.add(0);
+      }
       for (int i = 0; i < 3; i++) {
         if (l[i] > c[i]) return true;
         if (l[i] < c[i]) return false;

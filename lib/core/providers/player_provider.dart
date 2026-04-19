@@ -11,7 +11,6 @@ import '../models/song.dart';
 import '../services/api_service.dart';
 import '../services/color_service.dart';
 import '../services/widget_service.dart';
-import '../services/network_quality_service.dart';
 import '../services/eq_service.dart';
 
 enum RepeatMode { off, all, one }
@@ -107,7 +106,7 @@ class PlayerProvider extends ChangeNotifier {
     _crossfading = true;
 
     final steps    = _crossfadeSeconds * 20;  // 20 ticks/s
-    final interval = const Duration(milliseconds: 50);
+    const interval = Duration(milliseconds: 50);
     final startVol = _volume;
     int tick = 0;
 
@@ -259,25 +258,7 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  // Mise à jour asynchrone de l'artUri dans le MediaItem (pour la notification)
-  Future<void> _updateArtUri(Song song, int index) async {
-    if (index < 0 || index >= _playlist.length) return;
-    try {
-      final artUrl =
-          '${_api.baseUrl}/img/thumbnail/${song.image ?? song.hash}';
-      final localUri = await _cacheArtwork(artUrl, song.image ?? song.hash);
-      // Remplacer la source avec l'artUri local
-      final newSource = AudioSource.uri(
-        Uri.parse(_api.getStreamUrl(song.hash, filepath: song.filepath)),
-        headers: _api.authHeaders,
-        tag: song.hash,
-      );
-      await _playlist.removeRange(index, index + 1);
-      await _playlist.insert(index, newSource);
-    } catch (e) {
-      debugPrint('_updateArtUri error: $e');
-    }
-  }
+  // La fonction _updateArtUri a été supprimée car inutilisée.
 
   // ── Play ───────────────────────────────────────────────────────────────
   Future<void> playSong(Song song, {List<Song>? queue, int? index}) async {
@@ -418,9 +399,13 @@ class PlayerProvider extends ChangeNotifier {
     _queue.insert(newIndex, song);
     // Reconstruire la playlist pour la réorganisation
     _rebuildPlaylist(startIndex: _currentIndex);
-    if (oldIndex == _currentIndex) _currentIndex = newIndex;
-    else if (oldIndex < _currentIndex && newIndex >= _currentIndex) _currentIndex--;
-    else if (oldIndex > _currentIndex && newIndex <= _currentIndex) _currentIndex++;
+    if (oldIndex == _currentIndex) {
+      _currentIndex = newIndex;
+    } else if (oldIndex < _currentIndex && newIndex >= _currentIndex) {
+      _currentIndex--;
+    } else if (oldIndex > _currentIndex && newIndex <= _currentIndex) {
+      _currentIndex++;
+    }
     notifyListeners();
   }
 
@@ -432,36 +417,13 @@ class PlayerProvider extends ChangeNotifier {
         '${_api.baseUrl}/img/thumbnail/${song.image ?? song.hash}';
     WidgetService.instance.update(
       title:     song.title,
-      artist:    song.artist ?? '',
+      artist:    song.artist,
       artUrl:    artUrl,
       isPlaying: _isPlaying,
       authToken: _api.accessToken,
     );
   }
 
-  // ── Cache pochette locale (notification Android) ──────────────────────
-  final Map<String, Uri> _artCache = {};
-
-  Future<Uri> _cacheArtwork(String url, String hash) async {
-    if (_artCache.containsKey(hash)) return _artCache[hash]!;
-    try {
-      final dir  = await getTemporaryDirectory();
-      final file = File('${dir.path}/art_$hash.jpg');
-      if (await file.exists()) {
-        return _artCache[hash] = file.uri;
-      }
-      final r = await http
-          .get(Uri.parse(url), headers: _api.authHeaders)
-          .timeout(const Duration(seconds: 8));
-      if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) {
-        await file.writeAsBytes(r.bodyBytes);
-        return _artCache[hash] = file.uri;
-      }
-    } catch (e) {
-      debugPrint('cacheArtwork error: $e');
-    }
-    return Uri.parse(url);
-  }
 
   // ── Dynamic colors ─────────────────────────────────────────────────────
   Future<void> _fetchColors() async {

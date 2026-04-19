@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../core/services/updater_service.dart';
-import '../../../main.dart'; // Palette Sp
+import '../../main.dart'; // Palette Sp
 
 class UpdaterDialog extends StatefulWidget {
   final String updateUrl;
 
-  const UpdaterDialog({Key? key, required this.updateUrl}) : super(key: key);
+  const UpdaterDialog({super.key, required this.updateUrl});
 
   static void showIfUpdateAvailable(BuildContext context, String url) {
     showDialog(
@@ -57,13 +57,15 @@ class _UpdaterDialogState extends State<UpdaterDialog> {
       backgroundColor: Sp.bg2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: Sp.bd),
+        side: BorderSide(color: Sp.bd),
       ),
-      title: Row(
-        children: const [
+      title: const Row(
+        children: [
           Icon(Icons.system_update_rounded, color: Sp.ac),
           SizedBox(width: 12),
-          Text('Mise à jour disponible', style: TextStyle(color: Sp.t1, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Mise à jour disponible',
+              style: TextStyle(
+                  color: Sp.t1, fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
       content: SizedBox(
@@ -72,7 +74,8 @@ class _UpdaterDialogState extends State<UpdaterDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_statusMessage, style: const TextStyle(color: Sp.t2, fontSize: 14)),
+            Text(_statusMessage,
+                style: const TextStyle(color: Sp.t2, fontSize: 14)),
             const SizedBox(height: 24),
             if (_isDownloading) ...[
               ClipRRect(
@@ -87,7 +90,8 @@ class _UpdaterDialogState extends State<UpdaterDialog> {
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
-                child: Text('${(_progress * 100).toStringAsFixed(1)}%', style: const TextStyle(color: Sp.t2, fontSize: 12)),
+                child: Text('${(_progress * 100).toStringAsFixed(1)}%',
+                    style: const TextStyle(color: Sp.t2, fontSize: 12)),
               )
             ]
           ],
@@ -104,9 +108,12 @@ class _UpdaterDialogState extends State<UpdaterDialog> {
             onPressed: _startDownload,
             style: ElevatedButton.styleFrom(
               backgroundColor: Sp.ac,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Télécharger', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            child: const Text('Télécharger',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
           ),
       ],
     );

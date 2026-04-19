@@ -11,7 +11,7 @@ import '../core/services/updater_service.dart';
 import 'components/updater_dialog.dart';
 
 class AppDesktop extends StatefulWidget {
-  const AppDesktop({Key? key}) : super(key: key);
+  const AppDesktop({super.key});
 
   @override
   State<AppDesktop> createState() => _AppDesktopState();
@@ -46,11 +46,11 @@ class _AppDesktopState extends State<AppDesktop> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Sp.bg0,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kWindowCaptionHeight),
+      appBar: const PreferredSize(
+        preferredSize: Size.fromHeight(kWindowCaptionHeight),
         child: SizedBox(
           height: kWindowCaptionHeight,
-          child: const WindowCaption(
+          child: WindowCaption(
             brightness: Brightness.dark,
             backgroundColor: Sp.bg0,
           ),

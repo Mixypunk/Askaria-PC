@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../main.dart';
 import 'package:http/http.dart' as http;
@@ -131,7 +131,7 @@ class _ArtworkWidgetState extends State<ArtworkWidget> {
           borderRadius: br,
           child: Container(
             width: size, height: size,
-            color: Sp.card,
+            color: Sp.bg2,
             child: Center(child: SizedBox(
               width: size * 0.3, height: size * 0.3,
               child: const CircularProgressIndicator(
@@ -146,9 +146,9 @@ class _ArtworkWidgetState extends State<ArtworkWidget> {
           borderRadius: br,
           child: Container(
             width: size, height: size,
-            color: Sp.card,
+            color: Sp.bg2,
             child: Icon(Icons.music_note_rounded,
-              size: size * 0.45, color: Sp.white40),
+              size: size * 0.45, color: Sp.t3),
           ),
         ),
       );

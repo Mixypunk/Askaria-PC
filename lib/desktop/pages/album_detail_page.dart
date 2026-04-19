@@ -9,7 +9,7 @@ import '../../../main.dart'; // Sp Palette
 
 class AlbumDetailPage extends StatefulWidget {
   final Album album;
-  const AlbumDetailPage({Key? key, required this.album}) : super(key: key);
+  const AlbumDetailPage({super.key, required this.album});
 
   @override
   State<AlbumDetailPage> createState() => _AlbumDetailPageState();
@@ -58,7 +58,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                colors: [Sp.ac.withOpacity(0.13), Colors.transparent],
+                colors: [Sp.ac.withValues(alpha: 0.13), Colors.transparent],
                 stops: const [0, 0.4],
               ),
             ),
@@ -70,7 +70,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                   decoration: BoxDecoration(
                     color: Sp.bg4,
                     borderRadius: BorderRadius.circular(10), // --r: 10px
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.7), blurRadius: 40, offset: const Offset(0, 8))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 40, offset: const Offset(0, 8))],
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: CachedNetworkImage(
@@ -107,8 +107,8 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 11),
                               decoration: BoxDecoration(color: Sp.ac, borderRadius: BorderRadius.circular(50)),
-                              child: Row(
-                                children: const [
+                              child: const Row(
+                                children: [
                                   Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
                                   SizedBox(width: 7),
                                   Text('Lecture', style: TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w600)),
@@ -128,10 +128,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
           // En-tête de Table (.tblh)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: Border(bottom: BorderSide(color: Sp.bd)),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Sp.bd))),
             margin: const EdgeInsets.only(bottom: 2),
-            child: Row(
-              children: const [
+            child: const Row(
+              children: [
                 SizedBox(width: 36, child: Text('#', style: TextStyle(color: Sp.t4, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.7))),
                 Expanded(child: Text('TITRE', style: TextStyle(color: Sp.t4, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.7))),
                 SizedBox(width: 70, child: Text('DURÉE', style: TextStyle(color: Sp.t4, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.7), textAlign: TextAlign.right)),
@@ -142,7 +142,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
 
           // Liste des titres
           _loading
-            ? Padding(padding: const EdgeInsets.only(top: 40), child: Center(child: CircularProgressIndicator(color: Sp.ac)))
+            ? const Padding(padding: EdgeInsets.only(top: 40), child: Center(child: CircularProgressIndicator(color: Sp.ac)))
             : ListView.builder(
                 shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                 itemCount: _tracks.length,
@@ -196,7 +196,7 @@ class _TrackRowState extends State<_TrackRow> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
-            color: widget.isPlaying ? Sp.ac4 : (_hover ? Colors.white.withOpacity(0.04) : Colors.transparent),
+            color: widget.isPlaying ? Sp.ac4 : (_hover ? Colors.white.withValues(alpha: 0.04) : Colors.transparent),
             borderRadius: BorderRadius.circular(7),
           ),
           child: Row(
@@ -220,11 +220,10 @@ class _TrackRowState extends State<_TrackRow> {
                       widget.track.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: widget.isPlaying ? Sp.ac : Sp.t1, fontSize: 13, fontWeight: FontWeight.w400),
                     ),
-                    if (widget.track.artist != null)
-                      Text(
-                        widget.track.artist!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Sp.t2, fontSize: 11.5),
-                      ),
+                    Text(
+                      widget.track.artist, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Sp.t2, fontSize: 11.5),
+                    ),
                   ],
                 ),
               ),

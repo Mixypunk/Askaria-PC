@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/api_service.dart';
-import '../../core/services/theme_notifier.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/services/updater_service.dart';
 import '../components/updater_dialog.dart';
 import '../../../main.dart'; // Palette Sp
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -177,13 +176,13 @@ class _AudioConfigState extends State<_AudioConfig> {
           child: SizedBox(
             width: 200,
             child: SliderTheme(
-              data: SliderThemeData(
+              data: const SliderThemeData(
                 trackHeight: 4,
                 activeTrackColor: Sp.ac,
                 inactiveTrackColor: Sp.bg3,
                 thumbColor: Sp.ac,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
+                overlayShape: RoundSliderOverlayShape(overlayRadius: 14),
               ),
               child: Slider(
                 value: player.crossfadeSeconds.toDouble(),
@@ -227,10 +226,9 @@ class _UpdateConfigState extends State<_UpdateConfig> {
         onPressed: _checking ? null : () async {
           setState(() { _checking = true; _statusDesc = 'Recherche en cours...'; });
           final updateUrl = await UpdaterService.checkForUpdate();
-          if (mounted) {
-            setState(() { _checking = false; _statusDesc = updateUrl != null ? 'Mise à jour trouvée !' : 'Vous êtes à jour.'; });
-            if (updateUrl != null) UpdaterDialog.showIfUpdateAvailable(widget.context, updateUrl);
-          }
+          if (!bc.mounted) return;
+          setState(() { _checking = false; _statusDesc = updateUrl != null ? 'Mise à jour trouvée !' : 'Vous êtes à jour.'; });
+          if (updateUrl != null) UpdaterDialog.showIfUpdateAvailable(bc, updateUrl);
         },
         child: _checking
           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Sp.t1))

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../main.dart';
 import '../services/api_service.dart';
 
@@ -90,8 +90,8 @@ class _WaveformSeekbarState extends State<WaveformSeekbar> {
                   painter: _WaveformPainter(
                     peaks:    _peaks,
                     progress: progress,
-                    activeColor:   Sp.g2,
-                    inactiveColor: Colors.white24,
+                    activeColor:   Sp.ac,
+                    inactiveColor: Sp.t4,
                   ),
                 ),
         ),
@@ -109,8 +109,8 @@ class _FallbackSeekbar extends StatelessWidget {
     child: LinearProgressIndicator(
       value: progress,
       minHeight: 3,
-      backgroundColor: Colors.white12,
-      valueColor: AlwaysStoppedAnimation(Sp.g2))));
+      backgroundColor: Sp.bg3,
+      valueColor: const AlwaysStoppedAnimation(Sp.ac))));
 }
 
 // ── Painter waveform ──────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ class _WaveformPainter extends CustomPainter {
     final barW   = (size.width / peaks.length) * 0.6;
     final gap    = (size.width / peaks.length) * 0.4;
     final midY   = size.height / 2;
-    final minH   = 2.0;
+    const minH   = 2.0;
     final progressX = size.width * progress;
 
     final paintA = Paint()..color = activeColor   ..strokeCap = StrokeCap.round;

@@ -4,12 +4,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../main.dart'; // Palette Sp
 import '../../core/services/api_service.dart';
 import '../../core/models/album.dart';
-import '../../core/models/playlist.dart';
 import '../../core/providers/player_provider.dart';
 import 'album_detail_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -54,7 +53,7 @@ class _HomePageState extends State<HomePage> {
         Positioned(
           top: 16, left: 16,
           child: Container(
-            decoration: BoxDecoration(color: Sp.bg0.withOpacity(0.6), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: Sp.bg0.withValues(alpha: 0.6), shape: BoxShape.circle),
             child: IconButton(
               icon: const Icon(Icons.arrow_back, color: Sp.t1),
               onPressed: () => setState(() => _selectedAlbum = null),
@@ -65,7 +64,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (_loading) {
-      return Center(child: CircularProgressIndicator(color: Sp.ac));
+      return const Center(child: CircularProgressIndicator(color: Sp.ac));
     }
 
     return SingleChildScrollView(
@@ -74,18 +73,18 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // En-tête
-          Padding(
-            padding: const EdgeInsets.only(bottom: 22),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 22),
             child: Text(
               'Bonne journée',
-              style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 24, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3),
+              style: TextStyle(fontFamily: 'Segoe UI', fontSize: 24, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3),
             ),
           ),
 
           if (_playlists.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.only(bottom: 13),
-              child: const Text('Vos Playlists', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 17, fontWeight: FontWeight.w700, color: Sp.t1)),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 13),
+              child: Text('Vos Playlists', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 17, fontWeight: FontWeight.w700, color: Sp.t1)),
             ),
             Wrap(
               spacing: 13, runSpacing: 13,
@@ -108,9 +107,9 @@ class _HomePageState extends State<HomePage> {
           ],
 
           if (_recentAlbums.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.only(bottom: 13),
-              child: const Text('Albums Récents', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 17, fontWeight: FontWeight.w700, color: Sp.t1)),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 13),
+              child: Text('Albums Récents', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 17, fontWeight: FontWeight.w700, color: Sp.t1)),
             ),
             Wrap(
               spacing: 13, runSpacing: 13,
@@ -138,8 +137,8 @@ class WebCard extends StatefulWidget {
   final bool isCircular;
 
   const WebCard({
-    Key? key, required this.title, required this.subtitle, this.imageUrl, required this.onTap, this.isCircular = false,
-  }) : super(key: key);
+    super.key, required this.title, required this.subtitle, this.imageUrl, required this.onTap, this.isCircular = false,
+  });
 
   @override
   State<WebCard> createState() => _WebCardState();
@@ -164,7 +163,7 @@ class _WebCardState extends State<WebCard> {
             color: _hover ? Sp.bg3 : Sp.bg2,
             borderRadius: BorderRadius.circular(10), // --r: 10px
             border: Border.all(color: _hover ? Sp.bd : Colors.transparent, width: 1),
-            boxShadow: _hover ? [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 2))] : [],
+            boxShadow: _hover ? [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 2))] : [],
           ),
           child: Column(
             crossAxisAlignment: widget.isCircular ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -210,7 +209,7 @@ class _WebCardState extends State<WebCard> {
                               color: Sp.ac,
                               shape: widget.isCircular ? BoxShape.circle : BoxShape.rectangle,
                               borderRadius: widget.isCircular ? null : BorderRadius.circular(18),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 14, offset: const Offset(0, 4))],
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 14, offset: const Offset(0, 4))],
                             ),
                             child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
                           ),

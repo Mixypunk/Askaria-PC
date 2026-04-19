@@ -6,7 +6,7 @@ import 'album_detail_page.dart';
 import 'home_page.dart'; // Pour WebCard
 
 class LibraryPage extends StatefulWidget {
-  const LibraryPage({Key? key}) : super(key: key);
+  const LibraryPage({super.key});
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -42,7 +42,7 @@ class _LibraryPageState extends State<LibraryPage> {
           Positioned(
             top: 16, left: 16,
             child: Container(
-              decoration: BoxDecoration(color: Sp.bg0.withOpacity(0.6), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: Sp.bg0.withValues(alpha: 0.6), shape: BoxShape.circle),
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Sp.t1),
                 onPressed: () => setState(() => _selectedAlbum = null),
@@ -54,7 +54,7 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     if (_loading) {
-      return Center(child: CircularProgressIndicator(color: Sp.ac));
+      return const Center(child: CircularProgressIndicator(color: Sp.ac));
     }
 
     return SingleChildScrollView(
@@ -62,9 +62,9 @@ class _LibraryPageState extends State<LibraryPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 22),
-            child: const Text('Albums', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 24, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3)),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 22),
+            child: Text('Albums', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 24, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3)),
           ),
           Wrap(
             spacing: 13, runSpacing: 13,

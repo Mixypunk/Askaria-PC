@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/providers/player_provider.dart';
@@ -18,15 +17,15 @@ class Sp {
 
   static const ac  = Color(0xFFE8375A); // Rouge/Rose Web
   static const ac2 = Color(0xFFC92D4A); // Rouge survol (hover)
-  static final ac4 = const Color(0xFFE8375A).withOpacity(0.07);
+  static final ac4 = const Color(0xFFE8375A).withValues(alpha: 0.07);
 
   static const t1  = Color(0xFFF0F0F0); // Text principal
   static const t2  = Color(0xFF909090); // Text secondaire
   static const t3  = Color(0xFF525252);
   static const t4  = Color(0xFF303030);
 
-  static final bd  = Colors.white.withOpacity(0.07);
-  static final bd2 = Colors.white.withOpacity(0.13);
+  static final bd  = Colors.white.withValues(alpha: 0.07);
+  static final bd2 = Colors.white.withValues(alpha: 0.13);
 }
 
 class GText extends StatelessWidget {
@@ -118,16 +117,16 @@ class _SplashScreen extends StatelessWidget {
   const _SplashScreen();
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         backgroundColor: Sp.bg0,
         body: Center(child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.music_note_rounded, size: 90, color: Sp.ac),
-            const SizedBox(height: 40),
-            const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Sp.ac, strokeWidth: 2)),
+            Icon(Icons.music_note_rounded, size: 90, color: Sp.ac),
+            SizedBox(height: 40),
+            SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Sp.ac, strokeWidth: 2)),
           ],
         )),
       ),
@@ -150,7 +149,7 @@ class _App extends StatelessWidget {
         scaffoldBackgroundColor: Sp.bg0,
         colorScheme: const ColorScheme.dark(
           primary: Sp.ac, secondary: Sp.ac2,
-          surface: Sp.bg1, background: Sp.bg0,
+          surface: Sp.bg1,
         ),
         textTheme: const TextTheme(
           bodyLarge: TextStyle(color: Sp.t1),

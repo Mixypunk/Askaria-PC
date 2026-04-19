@@ -8,8 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/song.dart';
 import '../models/album.dart';
-import '../models/artist.dart';
-import '../models/playlist.dart';
 
 class SwingApiService {
   static final SwingApiService _instance = SwingApiService._internal();
@@ -17,7 +15,6 @@ class SwingApiService {
   SwingApiService._internal();
 
   String _baseUrl = 'https://askaria-music.duckdns.org';
-  final _secure = false;
   String? _accessToken;
   String? _refreshToken;
   String? _streamToken;
@@ -781,10 +778,10 @@ class SwingApiService {
       final meta = {
         'hash':       song.hash,
         'title':      song.title,
-        'artist':     song.artist ?? '',
-        'album':      song.album  ?? '',
+        'artist':     song.artist,
+        'album':      song.album,
         'duration':   song.duration,
-        'image':      song.image  ?? '',
+        'image':      song.image ?? '',
         'filepath':   filePath,
         'downloaded': DateTime.now().toIso8601String(),
       };
@@ -804,7 +801,7 @@ class SwingApiService {
   Future<bool> isDownloaded(String hash, String filepath) async {
     try {
       final dir  = await getApplicationDocumentsDirectory();
-      final ext  = (filepath ?? '').split('.').last.toLowerCase();
+      final ext  = filepath.split('.').last.toLowerCase();
       final file = File('${dir.path}/offline/$hash.$ext');
       return file.existsSync();
     } catch (_) { return false; }
@@ -813,7 +810,7 @@ class SwingApiService {
   Future<String?> getOfflinePath(String hash, String filepath) async {
     try {
       final dir  = await getApplicationDocumentsDirectory();
-      final ext  = (filepath ?? '').split('.').last.toLowerCase();
+      final ext  = filepath.split('.').last.toLowerCase();
       final file = File('${dir.path}/offline/$hash.$ext');
       return file.existsSync() ? file.path : null;
     } catch (_) { return null; }
@@ -835,7 +832,7 @@ class SwingApiService {
   Future<void> deleteOfflineTrack(String hash, String filepath) async {
     try {
       final dir  = await getApplicationDocumentsDirectory();
-      final ext  = (filepath ?? '').split('.').last.toLowerCase();
+      final ext  = filepath.split('.').last.toLowerCase();
       final file = File('${dir.path}/offline/$hash.$ext');
       if (file.existsSync()) await file.delete();
     } catch (_) {}
