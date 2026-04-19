@@ -54,10 +54,21 @@ class UpdaterService {
       },
     );
 
-    // Lance l'installateur généré par Inno Setup
-    await Process.start(tempPath, ['/SILENT'], mode: ProcessStartMode.detached);
+    // Création d'un script batch pour attendre la fermeture de l'app puis lancer l'installateur
+    final batPath = '${tempDir.path}\\Askaria-Update.bat';
+    final batContent = '''
+@echo off
+echo Mise a jour d'Askaria en cours... Veuillez patienter.
+timeout /t 2 /nobreak > NUL
+start "" "$tempPath" /SILENT /FORCECLOSEAPPLICATIONS
+del "%~f0"
+''';
+    await File(batPath).writeAsString(batContent);
+
+    // Lancer le script en arrière-plan
+    await Process.start('cmd.exe', ['/c', batPath], mode: ProcessStartMode.detached);
     
-    // Ferme l'application courante pour permettre à Inno Setup d'écraser les fichiers
+    // Ferme l'application courante pour déverrouiller l'exécutable
     exit(0);
   }
 
