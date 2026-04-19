@@ -35,7 +35,6 @@ jobs:
         shell: bash
         run: |
           sed -i "s/^version:.*/version: ${{ steps.version.outputs.VERSION }}+${{ github.run_number }}/" pubspec.yaml
-          echo "pubspec.yaml updated:"
           grep '^version:' pubspec.yaml
 
       # ── Met à jour installer.iss avec la nouvelle version ─────────────
@@ -43,7 +42,6 @@ jobs:
         shell: bash
         run: |
           sed -i "s/#define MyAppVersion.*/#define MyAppVersion \"${{ steps.version.outputs.VERSION }}\"/" windows/installer.iss
-          echo "installer.iss updated:"
           grep 'MyAppVersion' windows/installer.iss
 
       # ── Flutter ────────────────────────────────────────────────────────
@@ -56,7 +54,26 @@ jobs:
         run: flutter pub get
 
       - name: Build Windows app
-        run: flutter build windows --release
+        run: flutter build windows --release --verbose
+
+      # ── Vérifie que le build a bien produit l'exe ─────────────────────
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          $exePath = "build\windows\x64\runner\Release\askaria_pc.exe"
+          Write-Host "=== Contenu du dossier Release ==="
+          if (Test-Path "build\windows\x64\runner\Release") {
+            Get-ChildItem "build\windows\x64\runner\Release" | Format-Table Name, Length
+          } else {
+            Write-Host "ERREUR: Le dossier Release n'existe pas!"
+            Write-Host "=== Contenu de build\windows ==="
+            Get-ChildItem "build\windows" -Recurse -Depth 3 | Format-Table FullName
+          }
+          if (-not (Test-Path $exePath)) {
+            Write-Error "ERREUR: $exePath introuvable. Le build Flutter a echoue."
+            exit 1
+          }
+          Write-Host "OK: $exePath trouve!"
 
       # ── Inno Setup ────────────────────────────────────────────────────
       - name: Compile Inno Setup Installer
@@ -81,7 +98,7 @@ jobs:
           name: "Askaria PC ${{ steps.version.outputs.TAG }}"
           body: |
             ## Askaria PC ${{ steps.version.outputs.TAG }}
-            
+
             **Commit :** ${{ github.sha }}
             **Build :** #${{ github.run_number }}
 
