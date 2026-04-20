@@ -392,17 +392,6 @@ class SwingApiService {
     return (tracks as List).map((e) => Song.fromJson(e)).toList();
   }
 
-  Future<List<Playlist>> getPublicPlaylists() async {
-    try {
-      final uri = Uri.parse('$_baseUrl/playlists/public');
-      final response = await _authedGet(uri);
-      if (response.statusCode != 200) return [];
-      final data = json.decode(response.body);
-      final items = data['data'] ?? data['playlists'] ?? data['items'] ?? (data is List ? data : []);
-      return (items as List).map((e) => Playlist.fromJson(e)).toList();
-    } catch (_) { return []; }
-  }
-
   // ── PLAYLIST CRUD ─────────────────────────────────────────────────────
   /// Créer une nouvelle playlist
   Future<Playlist?> createPlaylist(String name, {String description = '', bool isPublic = false}) async {
@@ -909,13 +898,11 @@ class SwingApiService {
     try {
       final uri = Uri.parse('$_baseUrl/playlists/public');
       final r = await _authedGet(uri);
-      if (r.statusCode == 200) {
-        final data = json.decode(r.body) as Map<String, dynamic>;
-        final items = data['data'] ?? data['items'] ?? [];
-        return (items as List).map((e) => Playlist.fromJson(e as Map<String, dynamic>)).toList();
-      }
-    } catch (_) {}
-    return [];
+      if (r.statusCode != 200) return [];
+      final data = json.decode(r.body);
+      final items = data['data'] ?? data['playlists'] ?? data['items'] ?? (data is List ? data : []);
+      return (items as List).map((e) => Playlist.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) { return []; }
   }
 
   // ── ADMIN — SCAN ────────────────────────────────────────────────────────
