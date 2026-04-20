@@ -147,7 +147,8 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     nameCtrl.dispose();
     descCtrl.dispose();
     if (result == true) {
-      await _api.createPlaylist(nameCtrl.text.trim());
+      await _api.createPlaylist(nameCtrl.text.trim(),
+          description: descCtrl.text.trim(), isPublic: isPublic);
       await _load();
       if (context.mounted) ToastService.show(context, 'Playlist créée !');
     }
@@ -317,35 +318,52 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
   Future<void> _editPlaylist(BuildContext context) async {
     final nameCtrl = TextEditingController(text: widget.playlist.name);
     final descCtrl = TextEditingController(text: widget.playlist.description ?? '');
+    bool isPublic = widget.playlist.isPublic;
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Sp.bg2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Modifier la playlist', style: TextStyle(color: Sp.t1, fontWeight: FontWeight.w700, fontFamily: 'Segoe UI')),
-        content: SizedBox(
-          width: 350,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Field(ctrl: nameCtrl, hint: 'Nom de la playlist'),
-              const SizedBox(height: 10),
-              _Field(ctrl: descCtrl, hint: 'Description', maxLines: 3),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          backgroundColor: Sp.bg2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: const Text('Modifier la playlist', style: TextStyle(color: Sp.t1, fontWeight: FontWeight.w700, fontFamily: 'Segoe UI')),
+          content: SizedBox(
+            width: 350,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Field(ctrl: nameCtrl, hint: 'Nom de la playlist'),
+                const SizedBox(height: 10),
+                _Field(ctrl: descCtrl, hint: 'Description', maxLines: 3),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isPublic,
+                      onChanged: (v) => setSt(() => isPublic = v ?? false),
+                      activeColor: Sp.ac,
+                    ),
+                    const Text('Playlist publique', style: TextStyle(color: Sp.t2, fontSize: 13)),
+                  ],
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Sp.ac),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Enregistrer', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Sp.ac),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Enregistrer', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
     if (result == true) {
-      await widget.api.updatePlaylist(widget.playlist.id, name: nameCtrl.text.trim(), description: descCtrl.text.trim());
+      await widget.api.updatePlaylist(widget.playlist.id,
+          name: nameCtrl.text.trim(),
+          description: descCtrl.text.trim(),
+          isPublic: isPublic);
       widget.onUpdated();
       if (context.mounted) ToastService.show(context, 'Playlist mise à jour');
       widget.onBack();
