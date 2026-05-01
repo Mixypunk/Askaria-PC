@@ -379,7 +379,7 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
         backgroundColor: Sp.bg2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text('Supprimer la playlist ?', style: TextStyle(color: Sp.t1)),
-        content: Text('Cette action est irréversible.', style: TextStyle(color: Sp.t2)),
+        content: const Text('Cette action est irréversible.', style: TextStyle(color: Sp.t2)),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
           ElevatedButton(

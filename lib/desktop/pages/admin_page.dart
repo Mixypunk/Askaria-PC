@@ -27,11 +27,13 @@ class _AdminPageState extends State<AdminPage> {
         _api.getAdminUsers(),
         _api.getLastFmStatus(),
       ]);
-      if (mounted) setState(() {
-        _users = results[0] as List<Map<String, dynamic>>;
-        _lastfm = results[1] as Map<String, dynamic>;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _users = results[0] as List<Map<String, dynamic>>;
+          _lastfm = results[1] as Map<String, dynamic>;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -289,7 +291,7 @@ class _Card extends StatelessWidget {
             Text(title, style: const TextStyle(color: Sp.t1, fontSize: 16, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 16),
-          Divider(color: Sp.bg3, height: 1),
+          const Divider(color: Sp.bg3, height: 1),
           const SizedBox(height: 16),
           child,
         ],

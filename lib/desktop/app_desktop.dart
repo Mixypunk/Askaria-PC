@@ -45,22 +45,25 @@ class _AppDesktopState extends State<AppDesktop> {
     }
   }
 
+  // Liste ordonnée des destinations — même ordre que NavDest.values
+  static const _dests = NavDest.values;
+
   Widget _buildPage(NavDest dest) {
     switch (dest) {
-      case NavDest.home:        return const HomePage();
-      case NavDest.search:      return const SearchPage();
-      case NavDest.songs:       return const SongsPage();
-      case NavDest.albums:      return const LibraryPage();
-      case NavDest.artists:     return const ArtistsPage();
-      case NavDest.genres:      return const GenresPage();
-      case NavDest.decades:     return const DecadesPage();
-      case NavDest.favourites:  return const FavouritesPage();
-      case NavDest.playlists:   return const PlaylistsPage();
-      case NavDest.discovery:   return const PlaylistsPage(); // handled inside
+      case NavDest.home:           return const HomePage();
+      case NavDest.search:         return const SearchPage();
+      case NavDest.songs:          return const SongsPage();
+      case NavDest.albums:         return const LibraryPage();
+      case NavDest.artists:        return const ArtistsPage();
+      case NavDest.genres:         return const GenresPage();
+      case NavDest.decades:        return const DecadesPage();
+      case NavDest.favourites:     return const FavouritesPage();
+      case NavDest.playlists:      return const PlaylistsPage();
+      case NavDest.discovery:      return const PlaylistsPage();
       case NavDest.recentlyPlayed: return const RecentlyPlayedPage();
-      case NavDest.profile:     return const ProfilePage();
-      case NavDest.admin:       return const AdminPage();
-      case NavDest.settings:    return const SettingsPage();
+      case NavDest.profile:        return const ProfilePage();
+      case NavDest.admin:          return const AdminPage();
+      case NavDest.settings:       return const SettingsPage();
     }
   }
 
@@ -91,17 +94,13 @@ class _AppDesktopState extends State<AppDesktop> {
                       selectedDest: _currentDest,
                       onDestSelected: (dest) => setState(() => _currentDest = dest),
                     ),
-                    // Main content
+                    // Main content — IndexedStack garde toutes les pages en mémoire
                     Expanded(
                       child: Container(
                         color: Sp.bg0,
-                        // Use AnimatedSwitcher for smooth page transitions
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: KeyedSubtree(
-                            key: ValueKey(_currentDest),
-                            child: _buildPage(_currentDest),
-                          ),
+                        child: IndexedStack(
+                          index: _dests.indexOf(_currentDest),
+                          children: _dests.map(_buildPage).toList(),
                         ),
                       ),
                     ),

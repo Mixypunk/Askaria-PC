@@ -181,11 +181,13 @@ class _ArtistDetailViewState extends State<_ArtistDetailView> {
         widget.api.getArtistAlbums(widget.artist.hash),
         widget.api.getArtistTracks(widget.artist.hash),
       ]);
-      if (mounted) setState(() {
-        _albums = results[0] as List<Album>;
-        _tracks = results[1] as List<Song>;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _albums = results[0] as List<Album>;
+          _tracks = results[1] as List<Song>;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }

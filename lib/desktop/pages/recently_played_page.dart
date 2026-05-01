@@ -35,8 +35,11 @@ class _RecentlyPlayedPageState extends State<RecentlyPlayedPage> {
       final data = await _api.getHistory(limit: 50);
       final tracks = data['tracks'] as List? ?? data['items'] as List? ?? [];
       final songs = tracks.map((e) => Song.fromJson(e as Map<String, dynamic>)).toList();
-      if (mounted && songs.isNotEmpty) setState(() { _recent = songs; _loading = false; });
-      else if (mounted) setState(() => _loading = false);
+      if (mounted && songs.isNotEmpty) {
+        setState(() { _recent = songs; _loading = false; });
+      } else if (mounted) {
+        setState(() => _loading = false);
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }

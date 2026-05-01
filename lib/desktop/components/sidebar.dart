@@ -28,11 +28,20 @@ class Sidebar extends StatefulWidget {
 class _SidebarState extends State<Sidebar> {
   final _api = SwingApiService();
   List<Playlist> _playlists = [];
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
     _loadPlaylists();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    try {
+      final profile = await _api.getMyProfile();
+      if (mounted) setState(() => _isAdmin = profile['role'] == 'admin');
+    } catch (_) {}
   }
 
   Future<void> _loadPlaylists() async {
@@ -95,7 +104,7 @@ class _SidebarState extends State<Sidebar> {
                   ),
 
                   _Divider(),
-                  _Label('Bibliothèque'),
+                  const _Label('Bibliothèque'),
 
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -160,7 +169,8 @@ class _SidebarState extends State<Sidebar> {
                       children: [
                         _Item(icon: Icons.history_rounded, label: 'Récents', dest: NavDest.recentlyPlayed, selected: widget.selectedDest, onTap: widget.onDestSelected),
                         _Item(icon: Icons.person_outline_rounded, label: 'Mon profil', dest: NavDest.profile, selected: widget.selectedDest, onTap: widget.onDestSelected),
-                        _Item(icon: Icons.admin_panel_settings_rounded, label: 'Administration', dest: NavDest.admin, selected: widget.selectedDest, onTap: widget.onDestSelected),
+                        if (_isAdmin)
+                          _Item(icon: Icons.admin_panel_settings_rounded, label: 'Administration', dest: NavDest.admin, selected: widget.selectedDest, onTap: widget.onDestSelected),
                         _Item(icon: Icons.settings_rounded, label: 'Paramètres', dest: NavDest.settings, selected: widget.selectedDest, onTap: widget.onDestSelected),
                       ],
                     ),

@@ -111,7 +111,7 @@ class _DecadeCardState extends State<_DecadeCard> {
                     Center(
                       child: Text(
                         label,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Sp.ac,
                           fontSize: 22, fontWeight: FontWeight.w900,
                           fontFamily: 'Segoe UI',
@@ -124,7 +124,7 @@ class _DecadeCardState extends State<_DecadeCard> {
                       child: Center(
                         child: Container(
                           width: 36, height: 36,
-                          decoration: BoxDecoration(color: Sp.ac, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(color: Sp.ac, shape: BoxShape.circle),
                           child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
                         ),
                       ),

@@ -50,7 +50,7 @@ class _LyricsOverlayState extends State<LyricsOverlay>
 
   void _scrollToActive(int idx, int total) {
     if (!_scrollCtrl.hasClients) return;
-    final itemH = 60.0;
+    const itemH = 60.0;
     final targetOffset = (idx * itemH) - (MediaQuery.of(context).size.height / 2);
     _scrollCtrl.animateTo(
       targetOffset.clamp(0.0, _scrollCtrl.position.maxScrollExtent),
