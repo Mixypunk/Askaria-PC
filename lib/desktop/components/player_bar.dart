@@ -166,7 +166,7 @@ class _PlayerCenter extends StatelessWidget {
     final shuffle =
         context.select<PlayerProvider, bool>((p) => p.shuffle);
     final repeatMode =
-        context.select<PlayerProvider, RepeatMode>((p) => p.repeatMode);
+        context.select<PlayerProvider, PlayerRepeatMode>((p) => p.repeatMode);
     final position =
         context.select<PlayerProvider, Duration>((p) => p.position);
     final duration =
@@ -239,11 +239,11 @@ class _PlayerCenter extends StatelessWidget {
                 splashRadius: 24,
                 iconSize: 20,
                 icon: Icon(
-                  repeatMode == RepeatMode.one
+                  repeatMode == PlayerRepeatMode.one
                       ? Icons.repeat_one_rounded
                       : Icons.repeat_rounded,
                 ),
-                color: repeatMode != RepeatMode.off ? Sp.ac : Sp.t3,
+                color: repeatMode != PlayerRepeatMode.off ? Sp.ac : Sp.t3,
                 onPressed: player.toggleRepeat,
               ),
               // Paroles

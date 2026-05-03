@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -11,7 +11,7 @@ import '../services/color_service.dart';
 import '../services/widget_service.dart';
 import '../services/eq_service.dart';
 
-enum RepeatMode { off, all, one }
+enum PlayerRepeatMode { off, all, one }
 
 class PlayerProvider extends ChangeNotifier {
   late final AudioPlayer _player;
@@ -30,7 +30,7 @@ class PlayerProvider extends ChangeNotifier {
   bool _isActionPending = false; // guard anti double-tap / actions concurrentes
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  RepeatMode _repeatMode = RepeatMode.off;
+  PlayerRepeatMode _repeatMode = PlayerRepeatMode.off;
   bool _shuffle = false;
   String? _error;
   bool _disposed = false;
@@ -58,7 +58,7 @@ class PlayerProvider extends ChangeNotifier {
   bool get mounted => !_disposed;
   Duration get position => _position;
   Duration get duration => _duration;
-  RepeatMode get repeatMode => _repeatMode;
+  PlayerRepeatMode get repeatMode => _repeatMode;
   bool get shuffle => _shuffle;
   String? get lyrics => _lyrics;
   bool get lyricsLoading => _lyricsLoading;
@@ -130,7 +130,7 @@ class PlayerProvider extends ChangeNotifier {
   /// Appelé [_crossfadeSeconds] secondes avant la fin du titre.
   Future<void> _startCrossfade() async {
     if (_crossfading || _crossfadeSeconds <= 0) return;
-    if (!_player.hasNext && _repeatMode != RepeatMode.all) return;
+    if (!_player.hasNext && _repeatMode != PlayerRepeatMode.all) return;
     _crossfading = true;
 
     final steps    = _crossfadeSeconds * 20;  // 20 ticks/s
@@ -217,7 +217,7 @@ class PlayerProvider extends ChangeNotifier {
           state.processingState == ProcessingState.buffering;
       if (state.processingState == ProcessingState.completed) {
         // Fin de la playlist complète
-        if (_repeatMode == RepeatMode.all) {
+        if (_repeatMode == PlayerRepeatMode.all) {
           _player.seek(Duration.zero, index: 0);
           _player.play();
         }
@@ -351,7 +351,7 @@ class PlayerProvider extends ChangeNotifier {
         await _player.seek(Duration.zero, index: idx);
       } else if (_player.hasNext) {
         await _player.seekToNext();
-      } else if (_repeatMode == RepeatMode.all) {
+      } else if (_repeatMode == PlayerRepeatMode.all) {
         await _player.seek(Duration.zero, index: 0);
       } else {
         // Rien à faire (fin de liste sans repeat)
@@ -405,15 +405,15 @@ class PlayerProvider extends ChangeNotifier {
 
   void toggleRepeat() {
     _repeatMode =
-        RepeatMode.values[(_repeatMode.index + 1) % RepeatMode.values.length];
+        PlayerRepeatMode.values[(_repeatMode.index + 1) % PlayerRepeatMode.values.length];
     switch (_repeatMode) {
-      case RepeatMode.off:
+      case PlayerRepeatMode.off:
         _player.setLoopMode(LoopMode.off);
         break;
-      case RepeatMode.all:
+      case PlayerRepeatMode.all:
         _player.setLoopMode(LoopMode.all);
         break;
-      case RepeatMode.one:
+      case PlayerRepeatMode.one:
         _player.setLoopMode(LoopMode.one);
         break;
     }
