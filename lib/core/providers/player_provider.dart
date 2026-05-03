@@ -27,6 +27,7 @@ class PlayerProvider extends ChangeNotifier {
   int _currentIndex = -1;
   bool _isPlaying = false;
   bool _isLoading = false;
+  bool _isActionPending = false; // guard anti double-tap / actions concurrentes
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   RepeatMode _repeatMode = RepeatMode.off;
@@ -76,6 +77,35 @@ class PlayerProvider extends ChangeNotifier {
   // Volume
   double _volume = 1.0;
   double get volume => _volume;
+
+  // ── Throttle / debounce helpers ────────────────────────────────────────────
+  /// Throttle: max 1 notification de position toutes les [_positionThrottleMs] ms.
+  static const int _positionThrottleMs = 200;
+  DateTime _lastPositionNotify = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Debounce: la persistance de la queue attend [_persistDebounceMs] ms
+  /// d'inactivité avant d'écrire sur disque (évite les I/O lors du scrub).
+  static const int _persistDebounceMs = 1000;
+  Timer? _persistDebounceTimer;
+
+  /// Notifie les listeners de la position uniquement si le throttle l'autorise.
+  void _notifyPosition() {
+    if (!mounted) return;
+    final now = DateTime.now();
+    if (now.difference(_lastPositionNotify).inMilliseconds >= _positionThrottleMs) {
+      _lastPositionNotify = now;
+      notifyListeners();
+    }
+  }
+
+  /// Persistance debouncée : annule le timer précédent et relance.
+  void _schedulePersist() {
+    _persistDebounceTimer?.cancel();
+    _persistDebounceTimer = Timer(
+      const Duration(milliseconds: _persistDebounceMs),
+      _persistQueue,
+    );
+  }
 
   // ── Crossfade ──────────────────────────────────────────────────────────────
   int _crossfadeSeconds = 0;   // 0 = désactivé
@@ -206,7 +236,8 @@ class PlayerProvider extends ChangeNotifier {
           _isPlaying) {
         _startCrossfade();
       }
-      if (mounted) notifyListeners();
+      // Throttlé: max 1 rebuild/200ms pour éviter les freezes
+      _notifyPosition();
     });
 
     _player.durationStream.listen((dur) {
@@ -260,80 +291,110 @@ class PlayerProvider extends ChangeNotifier {
 
   // ── Play ───────────────────────────────────────────────────────────────
   Future<void> playSong(Song song, {List<Song>? queue, int? index}) async {
+    // Évite les appels simultanés (double-tap, clics rapides)
+    if (_isActionPending) return;
+    _isActionPending = true;
     _error = null;
-
-    if (queue != null) {
-      _queue = List.from(queue);
-      _currentIndex = index ?? queue.indexOf(song);
-      if (_currentIndex < 0) _currentIndex = 0;
-      await _rebuildPlaylist(startIndex: _currentIndex);
-    } else if (!_queue.contains(song)) {
-      _queue.add(song);
-      _currentIndex = _queue.length - 1;
-      await _playlist.add(_buildSource(song));
-      await _player.seek(Duration.zero, index: _currentIndex);
-    } else {
-      _currentIndex = _queue.indexOf(song);
-      await _player.seek(Duration.zero, index: _currentIndex);
+    try {
+      if (queue != null) {
+        _queue = List.from(queue);
+        _currentIndex = index ?? queue.indexOf(song);
+        if (_currentIndex < 0) _currentIndex = 0;
+        await _rebuildPlaylist(startIndex: _currentIndex);
+      } else if (!_queue.contains(song)) {
+        _queue.add(song);
+        _currentIndex = _queue.length - 1;
+        await _playlist.add(_buildSource(song));
+        await _player.seek(Duration.zero, index: _currentIndex);
+      } else {
+        _currentIndex = _queue.indexOf(song);
+        await _player.seek(Duration.zero, index: _currentIndex);
+      }
+      _addToHistory(song);
+      await _player.play();
+      _fetchLyrics();
+      _fetchColors();
+      _persistQueue();
+      if (mounted) notifyListeners();
+    } catch (e) {
+      debugPrint('playSong error: $e');
+    } finally {
+      _isActionPending = false;
     }
-
-    _addToHistory(song);
-    await _player.play();
-    _fetchLyrics();
-    _fetchColors();
-    _persistQueue();
-    notifyListeners();
   }
 
   // ── Controls ───────────────────────────────────────────────────────────
   Future<void> playPause() async {
-    if (_isPlaying) {
-      await _player.pause();
-    } else {
-      await _player.play();
+    // Lit l'état RÉEL du player, pas la variable locale qui peut être désynchronisée
+    final actuallyPlaying = _player.playing;
+    try {
+      if (actuallyPlaying) {
+        await _player.pause();
+      } else {
+        await _player.play();
+      }
+    } catch (e) {
+      debugPrint('playPause error: $e');
     }
   }
 
   Future<void> next() async {
-    if (_queue.isEmpty) return;
+    if (_queue.isEmpty || _isActionPending) return;
+    _isActionPending = true;
     _crossfadeTimer?.cancel();
     _crossfading = false;
-    // Restaurer le volume avant de passer au titre suivant
-    if (_player.volume < _volume) await _player.setVolume(_volume);
-    if (_shuffle) {
-      final idx = _random.nextInt(_queue.length);
-      await _player.seek(Duration.zero, index: idx);
-    } else if (_player.hasNext) {
-      await _player.seekToNext();
-    } else if (_repeatMode == RepeatMode.all) {
-      await _player.seek(Duration.zero, index: 0);
+    try {
+      // Restaurer le volume avant de passer au titre suivant
+      if (_player.volume < _volume) await _player.setVolume(_volume);
+      if (_shuffle) {
+        final idx = _random.nextInt(_queue.length);
+        await _player.seek(Duration.zero, index: idx);
+      } else if (_player.hasNext) {
+        await _player.seekToNext();
+      } else if (_repeatMode == RepeatMode.all) {
+        await _player.seek(Duration.zero, index: 0);
+      } else {
+        // Rien à faire (fin de liste sans repeat)
+        return;
+      }
+      await _player.play();
+    } catch (e) {
+      debugPrint('next error: $e');
+    } finally {
+      _isActionPending = false;
     }
-    await _player.play();
   }
 
   Future<void> previous() async {
-    if (_queue.isEmpty) return;
+    if (_queue.isEmpty || _isActionPending) return;
+    _isActionPending = true;
     _crossfadeTimer?.cancel();
     _crossfading = false;
-    if (_player.volume < _volume) await _player.setVolume(_volume);
-    if (_position.inSeconds > 3) {
-      await _player.seek(Duration.zero);
-      return;
+    try {
+      if (_player.volume < _volume) await _player.setVolume(_volume);
+      if (_position.inSeconds > 3) {
+        // Revenir au début du titre courant si on est passé 3s
+        await _player.seek(Duration.zero);
+      } else if (_shuffle) {
+        final idx = _random.nextInt(_queue.length);
+        await _player.seek(Duration.zero, index: idx);
+      } else if (_player.hasPrevious) {
+        await _player.seekToPrevious();
+      } else {
+        await _player.seek(Duration.zero, index: _queue.length - 1);
+      }
+      await _player.play();
+    } catch (e) {
+      debugPrint('previous error: $e');
+    } finally {
+      _isActionPending = false;
     }
-    if (_shuffle) {
-      final idx = _random.nextInt(_queue.length);
-      await _player.seek(Duration.zero, index: idx);
-    } else if (_player.hasPrevious) {
-      await _player.seekToPrevious();
-    } else {
-      await _player.seek(Duration.zero, index: _queue.length - 1);
-    }
-    await _player.play();
   }
 
   Future<void> seek(Duration position) async {
     await _player.seek(position);
-    _persistQueue();
+    // Debounced: évite les écritures disque en rafale lors du scrub
+    _schedulePersist();
   }
 
   Future<void> setVolume(double v) async {
@@ -625,6 +686,7 @@ class PlayerProvider extends ChangeNotifier {
     _sleepTimer?.cancel();
     _periodicTimer?.cancel();
     _crossfadeTimer?.cancel();
+    _persistDebounceTimer?.cancel();
     _player.dispose();
     super.dispose();
   }

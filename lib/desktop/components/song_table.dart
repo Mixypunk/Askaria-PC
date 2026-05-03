@@ -31,29 +31,38 @@ class SongTable extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
               children: [
-                const SizedBox(width: 36, child: Text('#', style: _headerStyle, textAlign: TextAlign.center)),
+                const SizedBox(
+                    width: 36,
+                    child: Text('#',
+                        style: _headerStyle,
+                        textAlign: TextAlign.center)),
                 const SizedBox(width: 10),
                 const Expanded(child: Text('Titre', style: _headerStyle)),
                 if (showAlbumColumn) ...[
                   const SizedBox(width: 10),
-                  const SizedBox(width: 160, child: Text('Album', style: _headerStyle)),
+                  const SizedBox(
+                      width: 160,
+                      child: Text('Album', style: _headerStyle)),
                 ],
                 const SizedBox(width: 10),
-                const SizedBox(width: 60, child: Text('Durée', style: _headerStyle, textAlign: TextAlign.right)),
+                const SizedBox(
+                    width: 60,
+                    child: Text('Durée',
+                        style: _headerStyle,
+                        textAlign: TextAlign.right)),
                 const SizedBox(width: 10),
                 const SizedBox(width: 36),
               ],
             ),
           ),
-        if (showHeader)
-          Divider(color: Sp.bd, height: 1),
+        if (showHeader) Divider(color: Sp.bd, height: 1),
         if (showHeader) const SizedBox(height: 2),
         ...songs.asMap().entries.map((e) => SongRow(
-          song: e.value,
-          index: e.key,
-          queue: songs,
-          showAlbumColumn: showAlbumColumn,
-        )),
+              song: e.value,
+              index: e.key,
+              queue: songs,
+              showAlbumColumn: showAlbumColumn,
+            )),
       ],
     );
   }
@@ -93,117 +102,159 @@ class _SongRowState extends State<SongRow> {
 
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
+    // context.select ciblé : cette ligne ne rebuild QUE si son propre hash
+    // devient actif ou change de statut favori. Sans ça, TOUTES les lignes
+    // rebuildent à chaque tick de position (~200ms) → freezes sur grosses listes.
+    final isPlaying = context.select<PlayerProvider, bool>(
+      (p) => p.currentSong?.hash == widget.song.hash,
+    );
+    final isFav = context.select<PlayerProvider, bool>(
+      (p) => p.isFavourite(widget.song.hash),
+    );
     final api = SwingApiService();
-    final isPlaying = player.currentSong?.hash == widget.song.hash;
-    final isFav = player.isFavourite(widget.song.hash);
 
-    return GestureDetector(
-      onSecondaryTapUp: (details) => _showContextMenu(context, details.globalPosition),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: GestureDetector(
-          onTap: () => player.playSong(widget.song, queue: widget.queue),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: isPlaying
-                  ? Sp.ac4
-                  : (_hover ? Colors.white.withValues(alpha: 0.04) : Colors.transparent),
-              borderRadius: BorderRadius.circular(7),
-            ),
-            child: Row(
-              children: [
-                // Numéro / icône equalizer
-                SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: Center(
-                    child: isPlaying
-                        ? const _EqBars()
-                        : (_hover
-                            ? const Icon(Icons.play_arrow_rounded, color: Sp.t1, size: 16)
-                            : Text('${widget.index + 1}',
-                                style: const TextStyle(color: Sp.t3, fontSize: 12.5))),
+    return RepaintBoundary(
+      child: GestureDetector(
+        onSecondaryTapUp: (details) =>
+            _showContextMenu(context, details.globalPosition),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: GestureDetector(
+            onTap: () => context
+                .read<PlayerProvider>()
+                .playSong(widget.song, queue: widget.queue),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: isPlaying
+                    ? Sp.ac4
+                    : (_hover
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : Colors.transparent),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                children: [
+                  // Numéro / icône equalizer
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Center(
+                      child: isPlaying
+                          ? const _EqBars()
+                          : (_hover
+                              ? const Icon(Icons.play_arrow_rounded,
+                                  color: Sp.t1, size: 16)
+                              : Text('${widget.index + 1}',
+                                  style: const TextStyle(
+                                      color: Sp.t3, fontSize: 12.5))),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                // Artwork + Titre + Artiste
-                Expanded(
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: CachedNetworkImage(
-                          imageUrl: api.getArtworkUrl(widget.song.image ?? widget.song.hash),
-                          httpHeaders: api.authHeaders,
-                          width: 36, height: 36,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => Container(
-                            width: 36, height: 36, color: Sp.bg4,
-                            child: const Icon(Icons.music_note_rounded, color: Sp.t3, size: 18),
+                  const SizedBox(width: 10),
+                  // Artwork + Titre + Artiste
+                  Expanded(
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: CachedNetworkImage(
+                            imageUrl: api.getArtworkUrl(
+                                widget.song.image ?? widget.song.hash),
+                            httpHeaders: api.authHeaders,
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Container(
+                              width: 36,
+                              height: 36,
+                              color: Sp.bg4,
+                              child: const Icon(Icons.music_note_rounded,
+                                  color: Sp.t3, size: 18),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(widget.song.title,
-                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.song.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: isPlaying ? Sp.ac : Sp.t1,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w400,
-                                )),
-                            Text(widget.song.artist,
-                                maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Sp.t2, fontSize: 11.5)),
-                          ],
+                                ),
+                              ),
+                              Text(
+                                widget.song.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: Sp.t2, fontSize: 11.5),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                // Album
-                if (widget.showAlbumColumn) ...[
+                  // Album
+                  if (widget.showAlbumColumn) ...[
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 160,
+                      child: Text(
+                        widget.song.album,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(color: Sp.t2, fontSize: 12),
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: 10),
+                  // Durée
                   SizedBox(
-                    width: 160,
-                    child: Text(widget.song.album,
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Sp.t2, fontSize: 12)),
+                    width: 60,
+                    child: Text(
+                      widget.song.formattedDuration,
+                      textAlign: TextAlign.right,
+                      style:
+                          const TextStyle(color: Sp.t2, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Favori
+                  SizedBox(
+                    width: 36,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      splashRadius: 14,
+                      constraints: const BoxConstraints(
+                          minWidth: 28, minHeight: 28),
+                      icon: Icon(
+                        isFav
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: isFav
+                            ? Sp.ac
+                            : (_hover ? Sp.t3 : Colors.transparent),
+                        size: 15,
+                      ),
+                      onPressed: () => context
+                          .read<PlayerProvider>()
+                          .toggleFavourite(widget.song.hash),
+                    ),
                   ),
                 ],
-                const SizedBox(width: 10),
-                // Durée
-                SizedBox(
-                  width: 60,
-                  child: Text(widget.song.formattedDuration,
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(color: Sp.t2, fontSize: 12)),
-                ),
-                const SizedBox(width: 10),
-                // Favori
-                SizedBox(
-                  width: 36,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    splashRadius: 14,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    icon: Icon(
-                      isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      color: isFav ? Sp.ac : (_hover ? Sp.t3 : Colors.transparent),
-                      size: 15,
-                    ),
-                    onPressed: () => player.toggleFavourite(widget.song.hash),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -227,7 +278,8 @@ class _SongRowState extends State<SongRow> {
       items: [
         _menuItem('next', Icons.queue_play_next_rounded, 'Écouter ensuite'),
         _menuItem('radio', Icons.radio_rounded, 'Lancer la radio'),
-        _menuItem('playlist', Icons.playlist_add_rounded, 'Ajouter à une playlist'),
+        _menuItem(
+            'playlist', Icons.playlist_add_rounded, 'Ajouter à une playlist'),
         const PopupMenuDivider(height: 1),
         _menuItem('fav', Icons.favorite_rounded, 'Ajouter aux favoris'),
       ],
@@ -236,36 +288,43 @@ class _SongRowState extends State<SongRow> {
       switch (value) {
         case 'next':
           player.addNextInQueue(widget.song);
-          ToastService.show(context, 'Écouter ensuite : ${widget.song.title}');
+          ToastService.show(
+              context, 'Écouter ensuite : ${widget.song.title}');
           break;
         case 'radio':
           _startRadio(context, player, api);
           break;
         case 'playlist':
-          await showAddToPlaylistDialog(context, trackHashes: [widget.song.hash]);
+          await showAddToPlaylistDialog(context,
+              trackHashes: [widget.song.hash]);
           break;
         case 'fav':
           await player.toggleFavourite(widget.song.hash);
           if (context.mounted) {
-            ToastService.show(context, player.isFavourite(widget.song.hash)
-                ? 'Ajouté aux favoris'
-                : 'Retiré des favoris');
+            ToastService.show(
+                context,
+                player.isFavourite(widget.song.hash)
+                    ? 'Ajouté aux favoris'
+                    : 'Retiré des favoris');
           }
           break;
       }
     });
   }
 
-  Future<void> _startRadio(BuildContext context, PlayerProvider player, SwingApiService api) async {
+  Future<void> _startRadio(
+      BuildContext context, PlayerProvider player, SwingApiService api) async {
     ToastService.show(context, 'Chargement de la radio...');
     final tracks = await api.getRadio(widget.song.hash);
     if (tracks.isNotEmpty && context.mounted) {
       player.playSong(tracks.first, queue: tracks);
-      ToastService.show(context, 'Radio lancée depuis "${widget.song.title}"');
+      ToastService.show(
+          context, 'Radio lancée depuis "${widget.song.title}"');
     }
   }
 
-  PopupMenuItem<String> _menuItem(String value, IconData icon, String label, {bool danger = false}) {
+  PopupMenuItem<String> _menuItem(String value, IconData icon, String label,
+      {bool danger = false}) {
     return PopupMenuItem<String>(
       value: value,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -274,7 +333,10 @@ class _SongRowState extends State<SongRow> {
         children: [
           Icon(icon, size: 14, color: danger ? Colors.redAccent : Sp.t2),
           const SizedBox(width: 10),
-          Text(label, style: TextStyle(color: danger ? Colors.redAccent : Sp.t2, fontSize: 12.5)),
+          Text(label,
+              style: TextStyle(
+                  color: danger ? Colors.redAccent : Sp.t2,
+                  fontSize: 12.5)),
         ],
       ),
     );
@@ -304,7 +366,9 @@ class _EqBarsState extends State<_EqBars> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    for (final c in _ctrls) { c.dispose(); }
+    for (final c in _ctrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 

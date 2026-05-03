@@ -31,9 +31,33 @@ class _AppDesktopState extends State<AppDesktop> {
   NavDest _currentDest = NavDest.home;
   bool _showLyrics = false;
 
+  /// Pages pré-construites une seule fois dans initState.
+  /// IndexedStack les garde en vie, mais _buildPage() était appelé à chaque
+  /// rebuild de AppDesktop (chaque changement de nav), ce qui recrée
+  /// inutilement les widgets constants. En les mémorisant ici, le build()
+  /// devient O(1) pour la liste des pages.
+  late final List<Widget> _pages;
+
   @override
   void initState() {
     super.initState();
+    // Ordre identique à NavDest.values — NE PAS changer sans mettre à jour NavDest
+    _pages = const [
+      HomePage(),
+      SearchPage(),
+      SongsPage(),
+      LibraryPage(),
+      ArtistsPage(),
+      GenresPage(),
+      DecadesPage(),
+      FavouritesPage(),
+      PlaylistsPage(),
+      PlaylistsPage(), // discovery → même page
+      RecentlyPlayedPage(),
+      ProfilePage(),
+      AdminPage(),
+      SettingsPage(),
+    ];
     _checkUpdates();
   }
 
@@ -42,28 +66,6 @@ class _AppDesktopState extends State<AppDesktop> {
     final updateUrl = await UpdaterService.checkForUpdate();
     if (updateUrl != null && mounted) {
       UpdaterDialog.showIfUpdateAvailable(context, updateUrl);
-    }
-  }
-
-  // Liste ordonnée des destinations — même ordre que NavDest.values
-  static const _dests = NavDest.values;
-
-  Widget _buildPage(NavDest dest) {
-    switch (dest) {
-      case NavDest.home:           return const HomePage();
-      case NavDest.search:         return const SearchPage();
-      case NavDest.songs:          return const SongsPage();
-      case NavDest.albums:         return const LibraryPage();
-      case NavDest.artists:        return const ArtistsPage();
-      case NavDest.genres:         return const GenresPage();
-      case NavDest.decades:        return const DecadesPage();
-      case NavDest.favourites:     return const FavouritesPage();
-      case NavDest.playlists:      return const PlaylistsPage();
-      case NavDest.discovery:      return const PlaylistsPage();
-      case NavDest.recentlyPlayed: return const RecentlyPlayedPage();
-      case NavDest.profile:        return const ProfilePage();
-      case NavDest.admin:          return const AdminPage();
-      case NavDest.settings:       return const SettingsPage();
     }
   }
 
@@ -92,29 +94,34 @@ class _AppDesktopState extends State<AppDesktop> {
                     // Sidebar
                     Sidebar(
                       selectedDest: _currentDest,
-                      onDestSelected: (dest) => setState(() => _currentDest = dest),
+                      onDestSelected: (dest) =>
+                          setState(() => _currentDest = dest),
                     ),
-                    // Main content — IndexedStack garde toutes les pages en mémoire
+                    // Contenu principal — IndexedStack préserve l'état de toutes les pages
                     Expanded(
-                      child: Container(
-                        color: Sp.bg0,
-                        child: IndexedStack(
-                          index: _dests.indexOf(_currentDest),
-                          children: _dests.map(_buildPage).toList(),
+                      child: RepaintBoundary(
+                        child: Container(
+                          color: Sp.bg0,
+                          // _pages est pré-construit dans initState : pas de recréation
+                          child: IndexedStack(
+                            index: NavDest.values.indexOf(_currentDest),
+                            children: _pages,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              // Player Bar
+              // Barre de lecture
               PlayerBar(
-                onLyricsPressed: () => setState(() => _showLyrics = !_showLyrics),
+                onLyricsPressed: () =>
+                    setState(() => _showLyrics = !_showLyrics),
               ),
             ],
           ),
 
-          // Lyrics Overlay
+          // Overlay Paroles
           if (_showLyrics)
             Positioned.fill(
               child: LyricsOverlay(
