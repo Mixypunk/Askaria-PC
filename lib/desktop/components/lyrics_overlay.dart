@@ -7,6 +7,11 @@ import '../../core/services/api_service.dart';
 
 /// Overlay plein écran avec les paroles de la chanson en cours.
 /// Synchronisées (LRC) ou texte brut. S'ouvre depuis la PlayerBar.
+///
+/// Architecture :
+/// - addListener sur PlayerProvider → setState propre (pas de mutation dans build)
+/// - Scroll vers la ligne active déclenché dans _onPlayerChanged, PAS dans build
+/// - Séparation claire entre l'état de chargement et l'état de lecture
 class LyricsOverlay extends StatefulWidget {
   final VoidCallback onClose;
   const LyricsOverlay({super.key, required this.onClose});
@@ -21,144 +26,225 @@ class _LyricsOverlayState extends State<LyricsOverlay>
   late final Animation<double> _opacity;
   final ScrollController _scrollCtrl = ScrollController();
   final _api = SwingApiService();
+
+  // État paroles
   int _activeLine = -1;
+  bool _userScrolling = false; // désactive l'auto-scroll si l'user scrolle manuellement
+
+  // Référence au provider pour l'écoute directe
+  PlayerProvider? _playerProvider;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _ctrl.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // On s'abonne UNE SEULE FOIS au provider — pas dans build()
+    final newProvider = Provider.of<PlayerProvider>(context, listen: false);
+    if (_playerProvider != newProvider) {
+      _playerProvider?.removeListener(_onPlayerChanged);
+      _playerProvider = newProvider;
+      _playerProvider!.addListener(_onPlayerChanged);
+      // Calcul initial de la ligne active
+      _onPlayerChanged();
+    }
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
     _scrollCtrl.dispose();
+    _playerProvider?.removeListener(_onPlayerChanged);
     super.dispose();
+  }
+
+  /// Appelé à chaque changement du PlayerProvider (position, song, lyrics…).
+  /// C'est ici qu'on met à jour _activeLine et déclenchons le scroll,
+  /// jamais dans build().
+  void _onPlayerChanged() {
+    if (!mounted) return;
+    final player = _playerProvider;
+    if (player == null) return;
+
+    if (!player.lyricsSynced || player.syncedLines == null) return;
+
+    final newActive =
+        _findActiveLine(player.syncedLines!, player.position);
+
+    if (newActive != _activeLine) {
+      setState(() {
+        _activeLine = newActive;
+      });
+      // Scroll seulement si l'utilisateur ne scrolle pas manuellement
+      if (!_userScrolling && newActive >= 0) {
+        _scrollToActive(newActive);
+      }
+    }
   }
 
   int _findActiveLine(List<Map<String, dynamic>> lines, Duration position) {
     final ms = position.inMilliseconds;
     int active = -1;
     for (int i = 0; i < lines.length; i++) {
-      final t = (lines[i]['time'] as int);
+      final t = lines[i]['time'] as int;
       if (t <= ms) active = i;
     }
     return active;
   }
 
-  void _scrollToActive(int idx, int total) {
+  void _scrollToActive(int idx) {
     if (!_scrollCtrl.hasClients) return;
-    const itemH = 60.0;
-    final targetOffset = (idx * itemH) - (MediaQuery.of(context).size.height / 2);
-    _scrollCtrl.animateTo(
-      targetOffset.clamp(0.0, _scrollCtrl.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+    // Attendre que le layout soit prêt avant d'animer
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollCtrl.hasClients) return;
+      const itemH = 60.0;
+      final viewportH = _scrollCtrl.position.viewportDimension;
+      final targetOffset =
+          (idx * itemH) - (viewportH / 2) + (itemH / 2);
+      _scrollCtrl.animateTo(
+        targetOffset.clamp(
+          0.0,
+          _scrollCtrl.position.maxScrollExtent,
+        ),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
-    final song = player.currentSong;
+    // On lit le provider SANS écoute ici — toutes les mises à jour passent
+    // par _onPlayerChanged(). On n'utilise watch() que pour les données
+    // qui ne changent pas à chaque tick (song, lyricsLoading, etc.)
+    final player = context.select<PlayerProvider, _LyricsSnapshot>(
+      (p) => _LyricsSnapshot(
+        song: p.currentSong,
+        loading: p.lyricsLoading,
+        synced: p.lyricsSynced,
+        syncedLines: p.syncedLines,
+        unsyncedLines: p.unsyncedLines,
+        lyrics: p.lyrics,
+      ),
+    );
 
-    // Update active line for synced lyrics
-    if (player.lyricsSynced && player.syncedLines != null) {
-      final newActive = _findActiveLine(player.syncedLines!, player.position);
-      if (newActive != _activeLine) {
-        _activeLine = newActive;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_activeLine >= 0) _scrollToActive(_activeLine, player.syncedLines!.length);
-        });
-      }
-    }
-
-    return FadeTransition(
-      opacity: _opacity,
-      child: Container(
-        color: const Color(0xFF080808).withValues(alpha: 0.97),
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Sp.bd)),
-              ),
-              child: Row(
-                children: [
-                  // Artwork
-                  if (song != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(7),
-                      child: CachedNetworkImage(
-                        imageUrl: _api.getArtworkUrl(song.image ?? song.hash),
-                        httpHeaders: _api.authHeaders,
-                        width: 46, height: 46,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Container(
-                          width: 46, height: 46, color: Sp.bg4,
-                          child: const Icon(Icons.music_note_rounded, color: Sp.t3),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(song?.title ?? '—',
-                            style: const TextStyle(color: Sp.t1, fontSize: 14.5, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        Text(song?.artist ?? '—',
-                            style: const TextStyle(color: Sp.t2, fontSize: 11.5)),
-                      ],
-                    ),
-                  ),
-                  // Fermer
-                  Container(
-                    width: 33, height: 33,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.close_rounded, color: Sp.t1, size: 16),
-                      onPressed: widget.onClose,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Corps paroles
-            Expanded(
-              child: _buildLyricsBody(player),
-            ),
-          ],
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n is ScrollStartNotification && n.dragDetails != null) {
+          _userScrolling = true;
+        } else if (n is ScrollEndNotification) {
+          // Reprendre l'auto-scroll 2s après que l'utilisateur s'arrête
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) _userScrolling = false;
+          });
+        }
+        return false;
+      },
+      child: FadeTransition(
+        opacity: _opacity,
+        child: Container(
+          color: const Color(0xFF080808).withValues(alpha: 0.97),
+          child: Column(
+            children: [
+              _buildHeader(player),
+              Expanded(child: _buildBody(player)),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildLyricsBody(PlayerProvider player) {
-    if (player.lyricsLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Sp.ac),
-      );
+  Widget _buildHeader(_LyricsSnapshot player) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Sp.bd)),
+      ),
+      child: Row(
+        children: [
+          if (player.song != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(7),
+              child: CachedNetworkImage(
+                imageUrl:
+                    _api.getArtworkUrl(player.song!.image ?? player.song!.hash),
+                httpHeaders: _api.authHeaders,
+                width: 46,
+                height: 46,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Container(
+                  width: 46,
+                  height: 46,
+                  color: Sp.bg4,
+                  child: const Icon(Icons.music_note_rounded, color: Sp.t3),
+                ),
+              ),
+            ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  player.song?.title ?? '—',
+                  style: const TextStyle(
+                      color: Sp.t1,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  player.song?.artist ?? '—',
+                  style: const TextStyle(color: Sp.t2, fontSize: 11.5),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 33,
+            height: 33,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              icon:
+                  const Icon(Icons.close_rounded, color: Sp.t1, size: 16),
+              onPressed: widget.onClose,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(_LyricsSnapshot player) {
+    if (player.loading) {
+      return const Center(child: CircularProgressIndicator(color: Sp.ac));
     }
 
-    if (player.syncedLines != null && player.syncedLines!.isNotEmpty) {
-      return _buildSyncedLyrics(player.syncedLines!, player.position);
+    if (player.synced && player.syncedLines != null && player.syncedLines!.isNotEmpty) {
+      return _buildSyncedLyrics(player.syncedLines!);
     }
 
     if (player.unsyncedLines != null && player.unsyncedLines!.isNotEmpty) {
       return _buildUnsyncedLyrics(player.unsyncedLines!);
     }
 
-    if (player.lyrics != null && player.lyrics!.isNotEmpty && player.lyrics != 'synced') {
+    if (player.lyrics != null &&
+        player.lyrics!.isNotEmpty &&
+        player.lyrics != 'synced') {
       return _buildPlainLyrics(player.lyrics!);
     }
 
@@ -168,22 +254,28 @@ class _LyricsOverlayState extends State<LyricsOverlay>
         children: [
           Icon(Icons.music_off_rounded, color: Sp.bg4, size: 48),
           SizedBox(height: 12),
-          Text('Aucune parole disponible', style: TextStyle(color: Sp.t3, fontSize: 13.5)),
+          Text('Aucune parole disponible',
+              style: TextStyle(color: Sp.t3, fontSize: 13.5)),
         ],
       ),
     );
   }
 
-  Widget _buildSyncedLyrics(List<Map<String, dynamic>> lines, Duration position) {
+  Widget _buildSyncedLyrics(List<Map<String, dynamic>> lines) {
     return ListView.builder(
       controller: _scrollCtrl,
       padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
       itemCount: lines.length,
+      itemExtent: 60.0, // hauteur fixe → scroll précis + perf accrue
       itemBuilder: (_, i) {
         final isActive = i == _activeLine;
         final isPast = i < _activeLine;
         final text = lines[i]['text'] as String? ?? '';
-        if (text.isEmpty) return const SizedBox(height: 20);
+
+        if (text.trim().isEmpty) {
+          return const SizedBox(height: 60);
+        }
+
         return GestureDetector(
           onTap: () {
             final ms = lines[i]['time'] as int;
@@ -194,19 +286,16 @@ class _LyricsOverlayState extends State<LyricsOverlay>
               duration: const Duration(milliseconds: 220),
               style: TextStyle(
                 fontFamily: 'Segoe UI',
-                fontSize: isActive ? 25 : 20,
-                fontWeight: FontWeight.w600,
+                fontSize: isActive ? 23 : 18,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: isActive
                     ? Sp.t1
                     : isPast
                         ? Colors.white.withValues(alpha: 0.13)
-                        : Colors.white.withValues(alpha: 0.20),
+                        : Colors.white.withValues(alpha: 0.25),
                 height: 1.6,
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                child: Text(text, textAlign: TextAlign.center),
-              ),
+              child: Text(text, textAlign: TextAlign.center),
             ),
           ),
         );
@@ -222,9 +311,7 @@ class _LyricsOverlayState extends State<LyricsOverlay>
           constraints: const BoxConstraints(maxWidth: 620),
           child: Text(
             lines.join('\n'),
-            style: const TextStyle(
-              color: Sp.t2, fontSize: 15, height: 1.9,
-            ),
+            style: const TextStyle(color: Sp.t2, fontSize: 15, height: 1.9),
             textAlign: TextAlign.start,
           ),
         ),
@@ -246,4 +333,39 @@ class _LyricsOverlayState extends State<LyricsOverlay>
       ),
     );
   }
+}
+
+/// Snapshot immuable du PlayerProvider pour le context.select de LyricsOverlay.
+/// N'inclut PAS la position — celle-ci est gérée via addListener pour éviter
+/// des rebuilds à chaque tick.
+class _LyricsSnapshot {
+  final dynamic song;
+  final bool loading;
+  final bool synced;
+  final List<Map<String, dynamic>>? syncedLines;
+  final List<String>? unsyncedLines;
+  final String? lyrics;
+
+  const _LyricsSnapshot({
+    required this.song,
+    required this.loading,
+    required this.synced,
+    required this.syncedLines,
+    required this.unsyncedLines,
+    required this.lyrics,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is _LyricsSnapshot &&
+      other.song?.hash == song?.hash &&
+      other.loading == loading &&
+      other.synced == synced &&
+      other.syncedLines == syncedLines &&
+      other.unsyncedLines == unsyncedLines &&
+      other.lyrics == lyrics;
+
+  @override
+  int get hashCode => Object.hash(
+      song?.hash, loading, synced, syncedLines, unsyncedLines, lyrics);
 }
