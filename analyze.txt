@@ -1,0 +1,77 @@
+Analyzing Askaria_PC...                                         
+
+warning - Unused import: '../services/network_quality_service.dart' - lib\core\providers\player_provider.dart:14:8 - unused_import
+   info - Use 'const' for final variables initialized to a constant value - lib\core\providers\player_provider.dart:110:5 - prefer_const_declarations
+warning - The declaration '_updateArtUri' isn't referenced - lib\core\providers\player_provider.dart:263:16 - unused_element
+warning - The value of the local variable 'localUri' isn't used - lib\core\providers\player_provider.dart:268:13 - unused_local_variable
+   info - Statements in an if should be enclosed in a block - lib\core\providers\player_provider.dart:421:36 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\core\providers\player_provider.dart:422:69 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\core\providers\player_provider.dart:423:69 - curly_braces_in_flow_control_structures
+warning - The left operand can't be null, so the right operand is never executed - lib\core\providers\player_provider.dart:435:33 - dead_null_aware_expression
+   info - The import of '../models/artist.dart' is unnecessary because all of the used elements are also provided by the import of '../models/album.dart' - lib\core\services\api_service.dart:11:8 - unnecessary_import
+   info - The import of '../models/playlist.dart' is unnecessary because all of the used elements are also provided by the import of '../models/album.dart' - lib\core\services\api_service.dart:12:8 - unnecessary_import
+warning - The value of the field '_secure' isn't used - lib\core\services\api_service.dart:20:9 - unused_field
+warning - The left operand can't be null, so the right operand is never executed - lib\core\services\api_service.dart:784:38 - dead_null_aware_expression
+warning - The left operand can't be null, so the right operand is never executed - lib\core\services\api_service.dart:785:38 - dead_null_aware_expression
+warning - The left operand can't be null, so the right operand is never executed - lib\core\services\api_service.dart:807:33 - dead_null_aware_expression
+warning - The left operand can't be null, so the right operand is never executed - lib\core\services\api_service.dart:816:33 - dead_null_aware_expression
+warning - The left operand can't be null, so the right operand is never executed - lib\core\services\api_service.dart:838:33 - dead_null_aware_expression
+   info - The imported package 'permission_handler' isn't a dependency of the importing package - lib\core\services\update_service.dart:7:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:permission_handler/permission_handler.dart' - lib\core\services\update_service.dart:7:8 - uri_does_not_exist
+   info - Statements in a while should be enclosed in a block - lib\core\services\update_service.dart:97:28 - curly_braces_in_flow_control_structures
+   info - Statements in a while should be enclosed in a block - lib\core\services\update_service.dart:98:28 - curly_braces_in_flow_control_structures
+  error - Undefined name 'Permission' - lib\core\services\update_service.dart:140:28 - undefined_identifier
+  error - Undefined name 'Permission' - lib\core\services\update_service.dart:142:30 - undefined_identifier
+   info - Use 'const' with the constructor to improve performance - lib\core\services\update_service.dart:200:14 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\core\services\update_service.dart:200:28 - prefer_const_literals_to_create_immutables
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\core\services\update_service.dart:285:42 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\core\services\update_service.dart:309:20 - curly_braces_in_flow_control_structures
+  error - Target of URI doesn't exist: '../main.dart' - lib\core\widgets\artwork_widget.dart:3:8 - uri_does_not_exist
+  error - Undefined name 'Sp' - lib\core\widgets\artwork_widget.dart:134:20 - undefined_identifier
+  error - Undefined name 'Sp' - lib\core\widgets\artwork_widget.dart:149:20 - undefined_identifier
+  error - Undefined name 'Sp' - lib\core\widgets\artwork_widget.dart:151:41 - undefined_identifier
+  error - Target of URI doesn't exist: '../screens/player_screen.dart' - lib\core\widgets\mini_player.dart:4:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../main.dart' - lib\core\widgets\mini_player.dart:5:8 - uri_does_not_exist
+  error - The name 'PlayerScreen' isn't a class - lib\core\widgets\mini_player.dart:33:42 - creation_with_non_type
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\mini_player.dart:52:44 - deprecated_member_use
+  error - Target of URI doesn't exist: '../main.dart' - lib\core\widgets\song_tile.dart:5:8 - uri_does_not_exist
+  error - The name 'GradientIcon' isn't a class - lib\core\widgets\song_tile.dart:35:27 - creation_with_non_type
+  error - Invalid constant value - lib\core\widgets\song_tile.dart:37:53 - invalid_constant
+  error - Undefined name 'AppColors' - lib\core\widgets\song_tile.dart:37:53 - undefined_identifier
+  error - Undefined name 'AppColors' - lib\core\widgets\song_tile.dart:53:38 - undefined_identifier
+  error - Invalid constant value - lib\core\widgets\song_tile.dart:60:47 - invalid_constant
+  error - Undefined name 'AppColors' - lib\core\widgets\song_tile.dart:60:47 - undefined_identifier
+  error - Invalid constant value - lib\core\widgets\song_tile.dart:66:43 - invalid_constant
+  error - Undefined name 'AppColors' - lib\core\widgets\song_tile.dart:66:43 - undefined_identifier
+  error - Invalid constant value - lib\core\widgets\song_tile.dart:69:64 - invalid_constant
+  error - Undefined name 'AppColors' - lib\core\widgets\song_tile.dart:69:64 - undefined_identifier
+  error - Undefined name 'AppColors' - lib\core\widgets\song_tile.dart:70:20 - undefined_identifier
+  error - Undefined name 'AppColors' - lib\core\widgets\song_tile.dart:82:36 - undefined_identifier
+  error - Undefined name 'AppColors' - lib\core\widgets\song_tile.dart:89:36 - undefined_identifier
+  error - Target of URI doesn't exist: '../main.dart' - lib\core\widgets\waveform_seekbar.dart:2:8 - uri_does_not_exist
+  error - Undefined name 'Sp' - lib\core\widgets\waveform_seekbar.dart:93:36 - undefined_identifier
+  error - Undefined name 'Sp' - lib\core\widgets\waveform_seekbar.dart:113:42 - undefined_identifier
+   info - Use 'const' for final variables initialized to a constant value - lib\core\widgets\waveform_seekbar.dart:136:5 - prefer_const_declarations
+   info - Parameter 'key' could be a super parameter - lib\desktop\app_desktop.dart:9:9 - use_super_parameters
+   info - Use 'const' with the constructor to improve performance - lib\desktop\app_desktop.dart:30:15 - prefer_const_constructors
+   info - Parameter 'key' could be a super parameter - lib\desktop\components\player_bar.dart:7:9 - use_super_parameters
+warning - The left operand can't be null, so the right operand is never executed - lib\desktop\components\player_bar.dart:71:53 - dead_null_aware_expression
+   info - Use 'const' with the constructor to improve performance - lib\desktop\components\player_bar.dart:103:29 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\desktop\components\player_bar.dart:158:31 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\desktop\components\player_bar.dart:200:27 - prefer_const_constructors
+   info - Parameter 'key' could be a super parameter - lib\desktop\components\sidebar.dart:7:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\desktop\components\sidebar.dart:124:32 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\desktop\login_desktop.dart:45:11 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\desktop\login_desktop.dart:45:39 - prefer_const_constructors
+   info - Parameter 'key' could be a super parameter - lib\desktop\pages\home_page.dart:5:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\desktop\pages\home_page.dart:52:42 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\desktop\pages\library_page.dart:6:9 - use_super_parameters
+   info - Use 'const' with the constructor to improve performance - lib\desktop\pages\library_page.dart:83:34 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\desktop\pages\library_page.dart:84:36 - prefer_const_constructors
+warning - The left operand can't be null, so the right operand is never executed - lib\desktop\pages\library_page.dart:104:47 - dead_null_aware_expression
+   info - The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\main.dart:2:8 - unnecessary_import
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\main.dart:147:32 - deprecated_member_use
+   info - The imported package 'askaria_desktop' isn't a dependency of the importing package - test\widget_test.dart:11:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:askaria_desktop/main.dart' - test\widget_test.dart:11:8 - uri_does_not_exist
+  error - The name 'MyApp' isn't a class - test\widget_test.dart:16:35 - creation_with_non_type
+
