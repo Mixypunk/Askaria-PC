@@ -34,6 +34,9 @@ class _LyricsOverlayState extends State<LyricsOverlay>
   // Référence au provider pour l'écoute directe
   PlayerProvider? _playerProvider;
 
+  /// Hash de la chanson actuellement affichée — permet de détecter un changement
+  String? _displayedSongHash;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +78,21 @@ class _LyricsOverlayState extends State<LyricsOverlay>
     final player = _playerProvider;
     if (player == null) return;
 
+    // Si la chanson a changé, réinitialiser la ligne active et le scroll
+    final currentHash = player.currentSong?.hash;
+    if (currentHash != _displayedSongHash) {
+      _displayedSongHash = currentHash;
+      setState(() {
+        _activeLine = -1;
+      });
+      // Remonter en haut pour la nouvelle chanson
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _scrollCtrl.hasClients) {
+          _scrollCtrl.jumpTo(0);
+        }
+      });
+    }
+
     if (!player.lyricsSynced || player.syncedLines == null) return;
 
     final newActive =
@@ -102,19 +120,18 @@ class _LyricsOverlayState extends State<LyricsOverlay>
   }
 
   void _scrollToActive(int idx) {
+    // Guard: ne rien faire si le controller n'est pas encore attaché
     if (!_scrollCtrl.hasClients) return;
-    // Attendre que le layout soit prêt avant d'animer
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Double vérification après le frame (le widget peut avoir été détaché)
       if (!mounted || !_scrollCtrl.hasClients) return;
       const itemH = 60.0;
       final viewportH = _scrollCtrl.position.viewportDimension;
+      final maxExtent = _scrollCtrl.position.maxScrollExtent;
       final targetOffset =
           (idx * itemH) - (viewportH / 2) + (itemH / 2);
       _scrollCtrl.animateTo(
-        targetOffset.clamp(
-          0.0,
-          _scrollCtrl.position.maxScrollExtent,
-        ),
+        targetOffset.clamp(0.0, maxExtent),
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
       );

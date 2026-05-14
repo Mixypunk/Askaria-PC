@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -28,6 +28,7 @@ class PlayerProvider extends ChangeNotifier {
   bool _isPlaying = false;
   bool _isLoading = false;
   bool _isActionPending = false; // guard anti double-tap / actions concurrentes
+  bool _isRestoringQueue = false; // guard pour bloquer currentIndexStream pendant la restauration
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   PlayerRepeatMode _repeatMode = PlayerRepeatMode.off;
@@ -139,33 +140,41 @@ class PlayerProvider extends ChangeNotifier {
     int tick = 0;
 
     _crossfadeTimer?.cancel();
-    _crossfadeTimer = Timer.periodic(interval, (t) async {
+    _crossfadeTimer = Timer.periodic(interval, (t) {
+      if (!mounted) { t.cancel(); _crossfading = false; return; }
       tick++;
       final ratio = tick / steps;
-      if (ratio >= 1.0 || !mounted) {
+      if (ratio >= 1.0) {
         t.cancel();
         _crossfading = false;
-        // Passer au titre suivant et remettre le volume
-        await _player.setVolume(0);
-        await next();
-        // Fade in
-        await _fadeIn(startVol);
+        // Passer au titre suivant (fire-and-forget, sans bloquer le timer)
+        _player.setVolume(0).then((_) async {
+          if (!mounted) return;
+          await next();
+          _fadeIn(startVol);
+        });
         return;
       }
-      // Fade out progressif
-      await _player.setVolume(startVol * (1.0 - ratio));
+      // Fade out progressif — non-bloquant
+      _player.setVolume(startVol * (1.0 - ratio));
     });
   }
 
-  Future<void> _fadeIn(double targetVolume) async {
+  /// Fade in non-bloquant via Timer.periodic (évite d'awaiter en boucle sur le thread UI).
+  void _fadeIn(double targetVolume) {
+    if (!mounted) return;
     const steps    = 30;
     const interval = Duration(milliseconds: 50);
-    for (int i = 0; i <= steps; i++) {
-      if (!mounted) return;
-      await _player.setVolume(targetVolume * (i / steps));
-      await Future.delayed(interval);
-    }
-    await _player.setVolume(targetVolume);
+    int i = 0;
+    Timer.periodic(interval, (t) {
+      if (!mounted) { t.cancel(); return; }
+      i++;
+      _player.setVolume(targetVolume * (i / steps));
+      if (i >= steps) {
+        t.cancel();
+        _player.setVolume(targetVolume);
+      }
+    });
   }
 
   PlayerProvider() {
@@ -200,7 +209,9 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     // Écouter l'index courant — just_audio gère le passage automatique entre titres
+    // Guard: ignorer les événements pendant la restauration initiale de la queue
     _player.currentIndexStream.listen((idx) {
+      if (_isRestoringQueue) return;
       if (idx != null && idx != _currentIndex && idx < _queue.length) {
         _currentIndex = idx;
         _fetchLyrics();
@@ -502,8 +513,15 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ── Lyrics ─────────────────────────────────────────────────────────────
+  /// Hash de la chanson pour laquelle les paroles ont été demandées.
+  /// Permet de détecter une race condition si la chanson change pendant le fetch.
+  String? _lyricsFetchingFor;
+
   Future<void> _fetchLyrics() async {
     if (currentSong == null) return;
+    final targetHash = currentSong!.hash;
+    _lyricsFetchingFor = targetHash;
+
     _lyrics = null;
     _syncedLines = null;
     _unsyncedLines = null;
@@ -512,9 +530,12 @@ class PlayerProvider extends ChangeNotifier {
     if (mounted) notifyListeners();
 
     final result = await _api.getLyrics(
-      currentSong!.hash,
-      filepath: currentSong!.filepath,
+      targetHash,
+      filepath: currentSong?.filepath,
     );
+
+    // RACE CONDITION GUARD : si la chanson a changé pendant le fetch, on ignore
+    if (!mounted || _lyricsFetchingFor != targetHash) return;
 
     if (result != null) {
       _lyricsSynced = result['synced'] == true;
@@ -632,6 +653,8 @@ class PlayerProvider extends ChangeNotifier {
 
   // ── Persistance queue ──────────────────────────────────────────────────
   Future<void> _restoreQueue() async {
+    // Bloquer currentIndexStream pendant la restauration pour éviter la race condition
+    _isRestoringQueue = true;
     try {
       final prefs       = await SharedPreferences.getInstance();
       final queueJson   = prefs.getString('queue_json');
@@ -648,9 +671,9 @@ class PlayerProvider extends ChangeNotifier {
       _queue = restored;
       _currentIndex = savedIndex.clamp(0, restored.length - 1);
 
-      // Construire la playlist et charger sans jouer
+      // Reconstruire la playlist complète (évite le double addAll sur la playlist vide)
       final sources = _queue.map(_buildSource).toList();
-      await _playlist.addAll(sources);
+      _playlist = ConcatenatingAudioSource(children: sources);
       await _player.setAudioSource(
         _playlist,
         initialIndex:    _currentIndex,
@@ -661,6 +684,8 @@ class PlayerProvider extends ChangeNotifier {
       debugPrint('Queue restaurée : ${restored.length} titres, index $_currentIndex');
     } catch (e) {
       debugPrint('Erreur restauration queue: $e');
+    } finally {
+      _isRestoringQueue = false;
     }
   }
 

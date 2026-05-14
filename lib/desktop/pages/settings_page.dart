@@ -5,6 +5,7 @@ import '../../core/providers/player_provider.dart';
 import '../../core/services/updater_service.dart';
 import '../components/updater_dialog.dart';
 import '../../../main.dart'; // Palette Sp
+import 'package:qr_flutter/qr_flutter.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -42,6 +43,11 @@ class SettingsPage extends StatelessWidget {
           child: Column(
             children: [
               _UpdateConfig(context: context),
+              const SizedBox(height: 16),
+              const SizedBox(height: 16),
+              const Divider(color: Sp.bg3, height: 1),
+              const SizedBox(height: 16),
+              _PairingConfig(context: context),
               const SizedBox(height: 16),
               const Divider(color: Sp.bg3, height: 1),
               const SizedBox(height: 16),
@@ -292,6 +298,125 @@ class _SettingRow extends StatelessWidget {
           ),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _PairingConfig extends StatelessWidget {
+  final BuildContext context;
+  const _PairingConfig({required this.context});
+
+  @override
+  Widget build(BuildContext bc) {
+    return _SettingRow(
+      label: 'Connexion rapide (Mobile)',
+      subtitle: 'Affiche un QR Code pour vous connecter rapidement depuis l\'application mobile',
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+        label: const Text('Afficher le QR Code', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+        onPressed: () => _showQrDialog(bc),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Sp.ac,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showQrDialog(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => const _QrDialog(),
+    );
+  }
+}
+
+class _QrDialog extends StatefulWidget {
+  const _QrDialog();
+  @override
+  State<_QrDialog> createState() => _QrDialogState();
+}
+
+class _QrDialogState extends State<_QrDialog> {
+  String? _qrData;
+  bool _loading = true;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCode();
+  }
+
+  Future<void> _loadCode() async {
+    final data = await SwingApiService().getPairCode();
+    if (!mounted) return;
+    if (data != null && data['qr_data'] != null) {
+      setState(() {
+        _qrData = data['qr_data'];
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _error = true;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Sp.bg2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        width: 320,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Connexion rapide', style: TextStyle(color: Sp.t1, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('Scannez ce code depuis l\'application mobile pour vous connecter instantanément.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Sp.t2, fontSize: 13.5, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            if (_loading)
+              const SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: Sp.ac)))
+            else if (_error || _qrData == null)
+              const SizedBox(height: 200, child: Center(child: Text('Erreur lors de la génération du code', style: TextStyle(color: Colors.redAccent))))
+            else
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                child: QrImageView(
+                  data: _qrData!,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Sp.t1,
+                  side: const BorderSide(color: Sp.bd),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Fermer'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -140,6 +140,17 @@ class SwingApiService {
     await prefs.remove('refresh_token');
   }
 
+  // GET /auth/pair/code
+  Future<Map<String, dynamic>?> getPairCode() async {
+    try {
+      final r = await _authedGet(Uri.parse('$_baseUrl/auth/pair/code'));
+      if (r.statusCode == 200) {
+        return json.decode(r.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // ── Refresh token automatique ────────────────────────────────────────
   Future<bool> _refreshAccessToken() async {
     if (_refreshToken == null) return false;
@@ -482,7 +493,7 @@ class SwingApiService {
           'trackhash': trackHash,
           'filepath': filepath ?? '',
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) return null;
       final data = json.decode(response.body);
       if (data['error'] != null) return null;

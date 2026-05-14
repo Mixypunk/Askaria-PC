@@ -43,6 +43,7 @@ dependencies:
   connectivity_plus: ^7.1.0
   cached_network_image: ^3.4.1
   just_audio_windows: ^0.2.3
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
