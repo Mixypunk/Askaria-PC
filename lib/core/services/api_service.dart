@@ -200,6 +200,19 @@ class SwingApiService {
     return r;
   }
 
+  Future<http.Response> _authedDelete(Uri uri, {Object? body}) async {
+    var r = await http.delete(uri, headers: _headers, body: body)
+        .timeout(const Duration(seconds: 10));
+    if (r.statusCode == 401) {
+      final refreshed = await _refreshAccessToken();
+      if (refreshed) {
+        r = await http.delete(uri, headers: _headers, body: body)
+            .timeout(const Duration(seconds: 10));
+      }
+    }
+    return r;
+  }
+
   Future<bool> checkAuth() async {
     // Pas de token du tout → login obligatoire
     if (_accessToken == null) return false;
@@ -946,12 +959,12 @@ class SwingApiService {
     } catch (_) { return false; }
   }
 
-  Future<bool> deleteUser(String userId) async {
+  Future<bool> deleteUser(String userId, {bool hardDelete = false}) async {
     try {
-      final r = await _authedPost(
-        Uri.parse('$_baseUrl/users/$userId/delete'),
-        body: json.encode({}),
+      final uri = Uri.parse('$_baseUrl/users/$userId').replace(
+        queryParameters: {'hard_delete': hardDelete.toString()},
       );
+      final r = await _authedDelete(uri);
       return r.statusCode == 200;
     } catch (_) { return false; }
   }

@@ -228,26 +228,32 @@ class _UserRow extends StatelessWidget {
           ),
           OutlinedButton(
             onPressed: () async {
-              final confirm = await showDialog<bool>(
+              final result = await showDialog<String>(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   backgroundColor: Sp.bg2,
-                  title: Text("Supprimer ${user['username']} ?", style: const TextStyle(color: Sp.t1)),
+                  title: Text("Gestion de ${user['username']}", style: const TextStyle(color: Sp.t1)),
+                  content: const Text("Voulez-vous désactiver ou supprimer définitivement cet utilisateur ?\nLa suppression définitive effacera ses playlists et historiques.", style: TextStyle(color: Sp.t2, fontSize: 13.5)),
                   actions: [
-                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
+                    TextButton(onPressed: () => Navigator.of(ctx).pop('cancel'), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
+                      onPressed: () => Navigator.of(ctx).pop('deactivate'),
+                      child: const Text('Désactiver', style: TextStyle(color: Colors.white)),
+                    ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Supprimer', style: TextStyle(color: Colors.white)),
+                      onPressed: () => Navigator.of(ctx).pop('delete'),
+                      child: const Text('Supprimer définitivement', style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
               );
-              if (confirm == true) {
+              if (result == 'deactivate' || result == 'delete') {
                 try {
-                  await api.deleteUser(user['id'].toString());
+                  await api.deleteUser(user['id'].toString(), hardDelete: result == 'delete');
                   onDeleted();
-                  if (context.mounted) ToastService.show(context, 'Utilisateur supprimé');
+                  if (context.mounted) ToastService.show(context, result == 'delete' ? 'Utilisateur supprimé définitivement' : 'Utilisateur désactivé');
                 } catch (e) {
                   if (context.mounted) ToastService.show(context, 'Erreur : $e');
                 }
@@ -259,7 +265,7 @@ class _UserRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
             ),
-            child: const Text('Supprimer', style: TextStyle(fontSize: 11.5)),
+            child: const Text('Gérer', style: TextStyle(fontSize: 11.5)),
           ),
         ],
       ),
