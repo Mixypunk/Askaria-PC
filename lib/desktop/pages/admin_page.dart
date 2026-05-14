@@ -241,7 +241,7 @@ class _UserRow extends StatelessWidget {
                     _Badge(
                       label: canDownload ? 'DL autorisé' : 'DL bloqué',
                       color: canDownload ? Colors.teal.shade700 : Colors.orange.shade800,
-                      icon: canDownload ? Icons.download_rounded : Icons.download_off_rounded,
+                      icon: canDownload ? Icons.download_rounded : Icons.block_rounded,
                     ),
                   ],
                 ),
@@ -265,7 +265,7 @@ class _UserRow extends StatelessWidget {
                     if (context.mounted) ToastService.show(context, 'Erreur : $e');
                   }
                 },
-                icon: Icon(canDownload ? Icons.download_off_rounded : Icons.download_rounded, size: 13),
+                icon: Icon(canDownload ? Icons.block_rounded : Icons.download_rounded, size: 13),
                 label: Text(canDownload ? 'Bloquer DL' : 'Autoriser DL', style: const TextStyle(fontSize: 11.5)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: canDownload ? Colors.orange.shade300 : Colors.teal.shade300,
