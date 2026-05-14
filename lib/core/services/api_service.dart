@@ -969,6 +969,17 @@ class SwingApiService {
     } catch (_) { return false; }
   }
 
+  Future<bool> toggleDownloadPermission(String userId, bool canDownload) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/users/$userId/permissions').replace(
+        queryParameters: {'can_download': canDownload.toString()},
+      );
+      final r = await http.patch(uri, headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      return r.statusCode == 200;
+    } catch (_) { return false; }
+  }
+
   // ── LAST.FM STATUS ─────────────────────────────────────────────────────
   Future<Map<String, dynamic>> getLastFmStatus() async {
     try {

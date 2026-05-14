@@ -201,6 +201,9 @@ class _UserRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isActive = user['is_active'] as bool? ?? true;
+    final canDownload = user['can_download'] as bool? ?? false;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -222,56 +225,137 @@ class _UserRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(user['username'] ?? '', style: const TextStyle(color: Sp.t1, fontWeight: FontWeight.w500, fontSize: 13.5)),
-                Text(user['role'] ?? 'user', style: const TextStyle(color: Sp.t2, fontSize: 11)),
-              ],
-            ),
-          ),
-          OutlinedButton(
-            onPressed: () async {
-              final result = await showDialog<String>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: Sp.bg2,
-                  title: Text("Gestion de ${user['username']}", style: const TextStyle(color: Sp.t1)),
-                  content: const Text("Voulez-vous désactiver ou supprimer définitivement cet utilisateur ?\nLa suppression définitive effacera ses playlists et historiques.", style: TextStyle(color: Sp.t2, fontSize: 13.5)),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.of(ctx).pop('cancel'), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
-                      onPressed: () => Navigator.of(ctx).pop('deactivate'),
-                      child: const Text('Désactiver', style: TextStyle(color: Colors.white)),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    _Badge(
+                      label: user['role'] ?? 'user',
+                      color: user['role'] == 'admin' ? Sp.ac : Colors.blue.shade700,
                     ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
-                      onPressed: () => Navigator.of(ctx).pop('delete'),
-                      child: const Text('Supprimer définitivement', style: TextStyle(color: Colors.white)),
+                    _Badge(
+                      label: isActive ? 'Actif' : 'Désactivé',
+                      color: isActive ? Colors.green.shade700 : Colors.grey.shade700,
+                      icon: isActive ? Icons.check_circle_outline : Icons.cancel_outlined,
+                    ),
+                    _Badge(
+                      label: canDownload ? 'DL autorisé' : 'DL bloqué',
+                      color: canDownload ? Colors.teal.shade700 : Colors.orange.shade800,
+                      icon: canDownload ? Icons.download_rounded : Icons.download_off_rounded,
                     ),
                   ],
                 ),
-              );
-              if (result == 'deactivate' || result == 'delete') {
-                try {
-                  await api.deleteUser(user['id'].toString(), hardDelete: result == 'delete');
-                  onDeleted();
-                  if (context.mounted) ToastService.show(context, result == 'delete' ? 'Utilisateur supprimé définitivement' : 'Utilisateur désactivé');
-                } catch (e) {
-                  if (context.mounted) ToastService.show(context, 'Erreur : $e');
-                }
-              }
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red.shade300,
-              side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+              ],
             ),
-            child: const Text('Gérer', style: TextStyle(fontSize: 11.5)),
           ),
+          const SizedBox(width: 8),
+          // Bouton toggle téléchargement
+          if (user['role'] != 'admin') ...[
+            Tooltip(
+              message: canDownload ? 'Bloquer le téléchargement' : 'Autoriser le téléchargement',
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    await api.toggleDownloadPermission(user['id'].toString(), !canDownload);
+                    onDeleted();
+                    if (context.mounted) {
+                      ToastService.show(context, canDownload ? 'Téléchargement bloqué' : 'Téléchargement autorisé');
+                    }
+                  } catch (e) {
+                    if (context.mounted) ToastService.show(context, 'Erreur : $e');
+                  }
+                },
+                icon: Icon(canDownload ? Icons.download_off_rounded : Icons.download_rounded, size: 13),
+                label: Text(canDownload ? 'Bloquer DL' : 'Autoriser DL', style: const TextStyle(fontSize: 11.5)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: canDownload ? Colors.orange.shade300 : Colors.teal.shade300,
+                  side: BorderSide(color: (canDownload ? Colors.orange : Colors.teal).withValues(alpha: 0.35)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 7),
+            // Bouton Gérer (désactiver / supprimer)
+            OutlinedButton(
+              onPressed: () async {
+                final result = await showDialog<String>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Sp.bg2,
+                    title: Text("Gestion de ${user['username']}", style: const TextStyle(color: Sp.t1)),
+                    content: const Text(
+                      "Voulez-vous désactiver ou supprimer définitivement cet utilisateur ?\nLa suppression définitive effacera ses playlists et historiques.",
+                      style: TextStyle(color: Sp.t2, fontSize: 13.5),
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.of(ctx).pop('cancel'), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
+                        onPressed: () => Navigator.of(ctx).pop('deactivate'),
+                        child: const Text('Désactiver', style: TextStyle(color: Colors.white)),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
+                        onPressed: () => Navigator.of(ctx).pop('delete'),
+                        child: const Text('Supprimer définitivement', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+                if (result == 'deactivate' || result == 'delete') {
+                  try {
+                    await api.deleteUser(user['id'].toString(), hardDelete: result == 'delete');
+                    onDeleted();
+                    if (context.mounted) {
+                      ToastService.show(context, result == 'delete' ? 'Utilisateur supprimé définitivement' : 'Utilisateur désactivé');
+                    }
+                  } catch (e) {
+                    if (context.mounted) ToastService.show(context, 'Erreur : $e');
+                  }
+                }
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red.shade300,
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+              ),
+              child: const Text('⚙️ Gérer', style: TextStyle(fontSize: 11.5)),
+            ),
+          ],
         ],
       ),
     );
   }
 }
+
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData? icon;
+  const _Badge({required this.label, required this.color, this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[Icon(icon, size: 10, color: color), const SizedBox(width: 3)],
+          Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
 
 class _Card extends StatelessWidget {
   final String title;
