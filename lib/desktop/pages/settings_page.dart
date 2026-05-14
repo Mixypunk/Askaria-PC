@@ -355,9 +355,10 @@ class _QrDialogState extends State<_QrDialog> {
   Future<void> _loadCode() async {
     final data = await SwingApiService().getPairCode();
     if (!mounted) return;
-    if (data != null && data['qr_data'] != null) {
+    if (data != null && data['code'] != null) {
+      final serverUrl = SwingApiService().baseUrl;
       setState(() {
-        _qrData = data['qr_data'];
+        _qrData = '$serverUrl ${data['code']}';
         _loading = false;
       });
     } else {
