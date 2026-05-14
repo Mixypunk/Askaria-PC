@@ -408,7 +408,7 @@ class _QrDialogState extends State<_QrDialog> {
                 onPressed: () => Navigator.of(context).pop(),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Sp.t1,
-                  side: const BorderSide(color: Sp.bd),
+                  side: BorderSide(color: Sp.bd),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
