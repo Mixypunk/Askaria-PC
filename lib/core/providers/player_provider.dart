@@ -139,10 +139,12 @@ class PlayerProvider extends ChangeNotifier {
           await _player.setLoopMode(LoopMode.off);
           break;
         case PlayerRepeatMode.all:
-          await _player.setLoopMode(LoopMode.all);
+          // just_audio_windows maps LoopMode.all/one inversely, so we swap them
+          await _player.setLoopMode(LoopMode.one);
           break;
         case PlayerRepeatMode.one:
-          await _player.setLoopMode(LoopMode.one);
+          // just_audio_windows maps LoopMode.all/one inversely, so we swap them
+          await _player.setLoopMode(LoopMode.all);
           break;
       }
 
@@ -160,6 +162,7 @@ class PlayerProvider extends ChangeNotifier {
   /// Appelé [_crossfadeSeconds] secondes avant la fin du titre.
   Future<void> _startCrossfade() async {
     if (_crossfading || _crossfadeSeconds <= 0) return;
+    if (_repeatMode == PlayerRepeatMode.one) return; // Pas de crossfade si on boucle le même titre
     if (!_player.hasNext && _repeatMode != PlayerRepeatMode.all) return;
     _crossfading = true;
 
@@ -469,10 +472,12 @@ class PlayerProvider extends ChangeNotifier {
         _player.setLoopMode(LoopMode.off);
         break;
       case PlayerRepeatMode.all:
-        _player.setLoopMode(LoopMode.all);
+        // just_audio_windows maps LoopMode.all/one inversely, so we swap them
+        _player.setLoopMode(LoopMode.one);
         break;
       case PlayerRepeatMode.one:
-        _player.setLoopMode(LoopMode.one);
+        // just_audio_windows maps LoopMode.all/one inversely, so we swap them
+        _player.setLoopMode(LoopMode.all);
         break;
     }
     SharedPreferences.getInstance().then((prefs) {
@@ -741,6 +746,10 @@ class PlayerProvider extends ChangeNotifier {
         initialIndex:    _currentIndex,
         initialPosition: Duration(seconds: savedPos),
       );
+
+      _fetchLyrics();
+      _fetchColors();
+      _updateWidget();
 
       if (mounted) notifyListeners();
       debugPrint('Queue restaurée : ${restored.length} titres, index $_currentIndex');

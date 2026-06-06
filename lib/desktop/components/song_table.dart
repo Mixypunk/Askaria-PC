@@ -14,16 +14,81 @@ class SongTable extends StatelessWidget {
   final List<Song> songs;
   final bool showAlbumColumn;
   final bool showHeader;
+  final bool useListView;
 
   const SongTable({
     super.key,
     required this.songs,
     this.showAlbumColumn = true,
     this.showHeader = true,
+    this.useListView = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (useListView) {
+      return ListView.builder(
+        padding: const EdgeInsets.only(bottom: 110),
+        itemCount: songs.length + (showHeader ? 2 : 0),
+        itemBuilder: (context, index) {
+          if (showHeader) {
+            if (index == 0) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                        width: 36,
+                        child: Text('#',
+                            style: _headerStyle,
+                            textAlign: TextAlign.center)),
+                    const SizedBox(width: 10),
+                    const Expanded(child: Text('Titre', style: _headerStyle)),
+                    if (showAlbumColumn) ...[
+                      const SizedBox(width: 10),
+                      const SizedBox(
+                          width: 160,
+                          child: Text('Album', style: _headerStyle)),
+                    ],
+                    const SizedBox(width: 10),
+                    const SizedBox(
+                        width: 60,
+                        child: Text('Durée',
+                            style: _headerStyle,
+                            textAlign: TextAlign.right)),
+                    const SizedBox(width: 10),
+                    const SizedBox(width: 36),
+                  ],
+                ),
+              );
+            }
+            if (index == 1) {
+              return Column(
+                children: [
+                  Divider(color: Sp.bd, height: 1),
+                  const SizedBox(height: 2),
+                ],
+              );
+            }
+            final songIndex = index - 2;
+            return SongRow(
+              song: songs[songIndex],
+              index: songIndex,
+              queue: songs,
+              showAlbumColumn: showAlbumColumn,
+            );
+          } else {
+            return SongRow(
+              song: songs[index],
+              index: index,
+              queue: songs,
+              showAlbumColumn: showAlbumColumn,
+            );
+          }
+        },
+      );
+    }
+
     return Column(
       children: [
         if (showHeader)
@@ -167,6 +232,8 @@ class _SongRowState extends State<SongRow> {
                             httpHeaders: api.authHeaders,
                             width: 36,
                             height: 36,
+                            memCacheWidth: 72,
+                            memCacheHeight: 72,
                             fit: BoxFit.cover,
                             errorWidget: (_, __, ___) => Container(
                               width: 36,

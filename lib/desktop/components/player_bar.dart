@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -95,6 +95,8 @@ class _PlayerLeft extends StatelessWidget {
                   imageUrl:
                       '${api.baseUrl}/img/thumbnail/${song.image ?? song.hash}',
                   httpHeaders: api.authHeaders,
+                  memCacheWidth: 96,
+                  memCacheHeight: 96,
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) =>
                       const Icon(Icons.music_note_rounded, color: Sp.t3),

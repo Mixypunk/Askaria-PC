@@ -60,9 +60,9 @@ class _RecentlyPlayedPageState extends State<RecentlyPlayedPage> {
         Expanded(
           child: _recent.isEmpty
               ? const Center(child: Text('Aucun historique', style: TextStyle(color: Sp.t3)))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
-                  child: SongTable(songs: _recent),
+              : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: SongTable(songs: _recent, useListView: true),
                 ),
         ),
       ],

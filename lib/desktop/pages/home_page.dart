@@ -277,6 +277,8 @@ class _WebCardState extends State<WebCard> {
                           ? CachedNetworkImage(
                               imageUrl: widget.imageUrl!,
                               width: 129, height: 129,
+                              memCacheWidth: 258,
+                              memCacheHeight: 258,
                               fit: BoxFit.cover,
                               httpHeaders: api.authHeaders,
                               errorWidget: (_, __, ___) => const Center(

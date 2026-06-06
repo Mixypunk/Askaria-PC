@@ -71,9 +71,9 @@ class _FavouritesPageState extends State<FavouritesPage> {
                   message: 'Aucun favori',
                   subtitle: 'Ajoutez des titres à vos favoris en cliquant sur ♥',
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
-                  child: SongTable(songs: _favs),
+              : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: SongTable(songs: _favs, useListView: true),
                 ),
         ),
       ],

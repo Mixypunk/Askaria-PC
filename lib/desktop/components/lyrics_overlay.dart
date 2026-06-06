@@ -212,6 +212,8 @@ class _LyricsOverlayState extends State<LyricsOverlay>
                 httpHeaders: _api.authHeaders,
                 width: 46,
                 height: 46,
+                memCacheWidth: 92,
+                memCacheHeight: 92,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(
                   width: 46,

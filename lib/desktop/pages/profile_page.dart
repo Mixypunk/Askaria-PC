@@ -166,6 +166,8 @@ class _AvatarCard extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: api.getAvatarUrl(userId),
                         httpHeaders: api.authHeaders,
+                        memCacheWidth: 200,
+                        memCacheHeight: 200,
                         fit: BoxFit.cover,
                         errorWidget: (_, __, ___) => Center(
                           child: Text(initials, style: const TextStyle(color: Sp.t1, fontSize: 32, fontWeight: FontWeight.w700)),

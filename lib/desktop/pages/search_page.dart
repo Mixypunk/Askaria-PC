@@ -156,14 +156,19 @@ class _SearchPageState extends State<SearchPage> {
                       (i) {
                         final song = _songs[i];
                         final player = context.read<PlayerProvider>();
-                        final isPlaying = context.watch<PlayerProvider>().currentSong?.hash == song.hash;
+                        final isPlaying = context.select<PlayerProvider, bool>(
+                          (p) => p.currentSong?.hash == song.hash,
+                        );
+                        final isFav = context.select<PlayerProvider, bool>(
+                          (p) => p.isFavourite(song.hash),
+                        );
 
                         return _SongRow(
                           song: song,
                           isPlaying: isPlaying,
                           api: _api,
                           onTap: () => player.playSong(song, queue: _songs),
-                          isFavourite: player.isFavourite(song.hash),
+                          isFavourite: isFav,
                           onFavTap: () => player.toggleFavourite(song.hash),
                         );
                       },
@@ -229,6 +234,8 @@ class _SongRowState extends State<_SongRow> {
                   imageUrl: widget.api.getArtworkUrl(widget.song.image ?? widget.song.hash),
                   httpHeaders: widget.api.authHeaders,
                   width: 38, height: 38,
+                  memCacheWidth: 76,
+                  memCacheHeight: 76,
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) => Container(
                     width: 38, height: 38,

@@ -77,9 +77,9 @@ class _SongsPageState extends State<SongsPage> {
         ),
         // Liste
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
-            child: SongTable(songs: _songs),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: SongTable(songs: _songs, useListView: true),
           ),
         ),
       ],

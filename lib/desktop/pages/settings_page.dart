@@ -172,13 +172,14 @@ class _AudioConfig extends StatefulWidget {
 class _AudioConfigState extends State<_AudioConfig> {
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
+    final crossfadeSeconds = context.select<PlayerProvider, int>((p) => p.crossfadeSeconds);
+    final player = context.read<PlayerProvider>();
 
     return Column(
       children: [
         _SettingRow(
           label: 'Crossfade',
-          subtitle: 'Fondu entre les chansons (${player.crossfadeSeconds}s)',
+          subtitle: 'Fondu entre les chansons (${crossfadeSeconds}s)',
           child: SizedBox(
             width: 200,
             child: SliderTheme(
@@ -191,7 +192,7 @@ class _AudioConfigState extends State<_AudioConfig> {
                 overlayShape: RoundSliderOverlayShape(overlayRadius: 14),
               ),
               child: Slider(
-                value: player.crossfadeSeconds.toDouble(),
+                value: crossfadeSeconds.toDouble(),
                 min: 0,
                 max: 12,
                 divisions: 12,

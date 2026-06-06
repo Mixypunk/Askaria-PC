@@ -44,7 +44,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
+    final player = context.read<PlayerProvider>();
     final artUrl = _api.getArtworkUrl(widget.album.image.isNotEmpty ? widget.album.image : widget.album.hash);
 
     return SingleChildScrollView(
@@ -77,6 +77,8 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                     imageUrl: artUrl,
                     httpHeaders: _api.authHeaders,
                     fit: BoxFit.cover,
+                    memCacheWidth: 360,
+                    memCacheHeight: 360,
                     errorWidget: (_, __, ___) => const Icon(Icons.album_rounded, color: Sp.t3, size: 80),
                   ),
                 ),
@@ -148,13 +150,18 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                 itemCount: _tracks.length,
                 itemBuilder: (context, index) {
                   final track = _tracks[index];
-                  final isPlaying = player.currentSong?.hash == track.hash;
+                  final isPlaying = context.select<PlayerProvider, bool>(
+                    (p) => p.currentSong?.hash == track.hash,
+                  );
+                  final isFav = context.select<PlayerProvider, bool>(
+                    (p) => p.isFavourite(track.hash),
+                  );
 
                   return _TrackRow(
                     track: track, index: index, isPlaying: isPlaying,
                     onTap: () => player.playSong(track, queue: _tracks, index: index),
                     formatDuration: _formatDuration,
-                    isFavourite: player.isFavourite(track.hash),
+                    isFavourite: isFav,
                     onFavTap: () => player.toggleFavourite(track.hash),
                   );
                 },

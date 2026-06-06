@@ -19,8 +19,7 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
-    final isCurrent = player.currentSong == song;
+    final isCurrent = context.select<PlayerProvider, bool>((p) => p.currentSong == song);
 
     return InkWell(
       onTap: onTap ?? () => context.read<PlayerProvider>().playSong(
