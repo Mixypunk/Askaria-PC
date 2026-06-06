@@ -127,6 +127,35 @@ class PlayerProvider extends ChangeNotifier {
     _crossfadeSeconds = prefs.getInt('crossfade_seconds') ?? 0;
   }
 
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Restore repeat mode
+      final repeatIndex = prefs.getInt('repeat_mode') ?? PlayerRepeatMode.off.index;
+      _repeatMode = PlayerRepeatMode.values[repeatIndex];
+      switch (_repeatMode) {
+        case PlayerRepeatMode.off:
+          await _player.setLoopMode(LoopMode.off);
+          break;
+        case PlayerRepeatMode.all:
+          await _player.setLoopMode(LoopMode.all);
+          break;
+        case PlayerRepeatMode.one:
+          await _player.setLoopMode(LoopMode.one);
+          break;
+      }
+
+      // Restore shuffle mode
+      _shuffle = prefs.getBool('shuffle') ?? false;
+      await _player.setShuffleModeEnabled(_shuffle);
+
+      if (mounted) notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+    }
+  }
+
   /// Démarre le fondu sortant et enchaîne sur le titre suivant.
   /// Appelé [_crossfadeSeconds] secondes avant la fin du titre.
   Future<void> _startCrossfade() async {
@@ -181,6 +210,7 @@ class PlayerProvider extends ChangeNotifier {
     _initPlayer();
     _loadFavourites();
     _loadCrossfade();
+    _loadSettings();
     _restoreQueue();
   }
 
@@ -230,6 +260,9 @@ class PlayerProvider extends ChangeNotifier {
         // Fin de la playlist complète
         if (_repeatMode == PlayerRepeatMode.all) {
           _player.seek(Duration.zero, index: 0);
+          _player.play();
+        } else if (_repeatMode == PlayerRepeatMode.one) {
+          _player.seek(Duration.zero);
           _player.play();
         }
       }
@@ -357,18 +390,23 @@ class PlayerProvider extends ChangeNotifier {
     try {
       // Restaurer le volume avant de passer au titre suivant
       if (_player.volume < _volume) await _player.setVolume(_volume);
+      
+      int nextIdx = -1;
       if (_shuffle) {
-        final idx = _random.nextInt(_queue.length);
-        await _player.seek(Duration.zero, index: idx);
-      } else if (_player.hasNext) {
-        await _player.seekToNext();
+        nextIdx = _random.nextInt(_queue.length);
+      } else if (_currentIndex < _queue.length - 1) {
+        nextIdx = _currentIndex + 1;
       } else if (_repeatMode == PlayerRepeatMode.all) {
-        await _player.seek(Duration.zero, index: 0);
+        nextIdx = 0;
+      }
+
+      if (nextIdx != -1) {
+        await _player.seek(Duration.zero, index: nextIdx);
+        await _player.play();
       } else {
-        // Rien à faire (fin de liste sans repeat)
+        // Fin de la queue sans repeat
         return;
       }
-      await _player.play();
     } catch (e) {
       debugPrint('next error: $e');
     } finally {
@@ -386,13 +424,22 @@ class PlayerProvider extends ChangeNotifier {
       if (_position.inSeconds > 3) {
         // Revenir au début du titre courant si on est passé 3s
         await _player.seek(Duration.zero);
-      } else if (_shuffle) {
-        final idx = _random.nextInt(_queue.length);
-        await _player.seek(Duration.zero, index: idx);
-      } else if (_player.hasPrevious) {
-        await _player.seekToPrevious();
       } else {
-        await _player.seek(Duration.zero, index: _queue.length - 1);
+        int prevIdx = -1;
+        if (_shuffle) {
+          prevIdx = _random.nextInt(_queue.length);
+        } else if (_currentIndex > 0) {
+          prevIdx = _currentIndex - 1;
+        } else if (_repeatMode == PlayerRepeatMode.all) {
+          prevIdx = _queue.length - 1;
+        }
+
+        if (prevIdx != -1) {
+          await _player.seek(Duration.zero, index: prevIdx);
+        } else {
+          // Revenir au début du titre courant si pas de précédent
+          await _player.seek(Duration.zero);
+        }
       }
       await _player.play();
     } catch (e) {
@@ -428,12 +475,18 @@ class PlayerProvider extends ChangeNotifier {
         _player.setLoopMode(LoopMode.one);
         break;
     }
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setInt('repeat_mode', _repeatMode.index);
+    }).catchError((_) {});
     notifyListeners();
   }
 
   void toggleShuffle() {
     _shuffle = !_shuffle;
     _player.setShuffleModeEnabled(_shuffle);
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('shuffle', _shuffle);
+    }).catchError((_) {});
     notifyListeners();
   }
 
@@ -447,11 +500,20 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void addNextInQueue(Song song) {
-    _queue.remove(song);
+    final oldIdx = _queue.indexOf(song);
+    if (oldIdx == _currentIndex) return; // Déjà en cours de lecture
+    if (oldIdx != -1) {
+      _queue.removeAt(oldIdx);
+      _playlist.removeRange(oldIdx, oldIdx + 1);
+      if (oldIdx < _currentIndex) {
+        _currentIndex--;
+      }
+    }
     final insertAt = (_currentIndex + 1).clamp(0, _queue.length);
     _queue.insert(insertAt, song);
     _playlist.insert(insertAt, _buildSource(song));
     if (insertAt <= _currentIndex) _currentIndex++;
+    _persistQueue();
     notifyListeners();
   }
 

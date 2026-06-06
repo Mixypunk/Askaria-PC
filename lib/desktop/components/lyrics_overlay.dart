@@ -36,6 +36,7 @@ class _LyricsOverlayState extends State<LyricsOverlay>
 
   /// Hash de la chanson actuellement affichée — permet de détecter un changement
   String? _displayedSongHash;
+  Duration _lastPosition = Duration.zero;
 
   @override
   void initState() {
@@ -78,10 +79,13 @@ class _LyricsOverlayState extends State<LyricsOverlay>
     final player = _playerProvider;
     if (player == null) return;
 
-    // Si la chanson a changé, réinitialiser la ligne active et le scroll
     final currentHash = player.currentSong?.hash;
+    final currentPos = player.position;
+
+    // Si la chanson a changé, réinitialiser la ligne active et le scroll
     if (currentHash != _displayedSongHash) {
       _displayedSongHash = currentHash;
+      _lastPosition = currentPos;
       setState(() {
         _activeLine = -1;
       });
@@ -91,6 +95,18 @@ class _LyricsOverlayState extends State<LyricsOverlay>
           _scrollCtrl.jumpTo(0);
         }
       });
+    } else {
+      // Si la chanson est la même, mais qu'on a reculé (seek ou boucle)
+      if (currentPos < _lastPosition - const Duration(seconds: 1) || currentPos == Duration.zero) {
+        if (currentPos.inMilliseconds < 1000) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _scrollCtrl.hasClients) {
+              _scrollCtrl.jumpTo(0);
+            }
+          });
+        }
+      }
+      _lastPosition = currentPos;
     }
 
     if (!player.lyricsSynced || player.syncedLines == null) return;
@@ -120,8 +136,6 @@ class _LyricsOverlayState extends State<LyricsOverlay>
   }
 
   void _scrollToActive(int idx) {
-    // Guard: ne rien faire si le controller n'est pas encore attaché
-    if (!_scrollCtrl.hasClients) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Double vérification après le frame (le widget peut avoir été détaché)
       if (!mounted || !_scrollCtrl.hasClients) return;
