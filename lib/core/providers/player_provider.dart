@@ -27,7 +27,7 @@ class PlayerProvider extends ChangeNotifier {
   int _currentIndex = -1;
   bool _isPlaying = false;
   bool _isLoading = false;
-  bool _isActionPending = false; // guard anti double-tap / actions concurrentes
+  int _playRequestId = 0; // request counter to cancel concurrent/stale play loads
   bool _isRestoringQueue = false; // guard pour bloquer currentIndexStream pendant la restauration
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -139,12 +139,10 @@ class PlayerProvider extends ChangeNotifier {
           await _player.setLoopMode(LoopMode.off);
           break;
         case PlayerRepeatMode.all:
-          // just_audio_windows maps LoopMode.all/one inversely, so we swap them
-          await _player.setLoopMode(LoopMode.one);
+          await _player.setLoopMode(LoopMode.all);
           break;
         case PlayerRepeatMode.one:
-          // just_audio_windows maps LoopMode.all/one inversely, so we swap them
-          await _player.setLoopMode(LoopMode.all);
+          await _player.setLoopMode(LoopMode.one);
           break;
       }
 
@@ -338,9 +336,7 @@ class PlayerProvider extends ChangeNotifier {
 
   // ── Play ───────────────────────────────────────────────────────────────
   Future<void> playSong(Song song, {List<Song>? queue, int? index}) async {
-    // Évite les appels simultanés (double-tap, clics rapides)
-    if (_isActionPending) return;
-    _isActionPending = true;
+    final requestId = ++_playRequestId;
     _error = null;
     try {
       if (queue != null) {
@@ -357,6 +353,7 @@ class PlayerProvider extends ChangeNotifier {
         _currentIndex = _queue.indexOf(song);
         await _player.seek(Duration.zero, index: _currentIndex);
       }
+      if (requestId != _playRequestId) return;
       _addToHistory(song);
       await _player.play();
       _fetchLyrics();
@@ -365,8 +362,6 @@ class PlayerProvider extends ChangeNotifier {
       if (mounted) notifyListeners();
     } catch (e) {
       debugPrint('playSong error: $e');
-    } finally {
-      _isActionPending = false;
     }
   }
 
@@ -386,8 +381,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> next() async {
-    if (_queue.isEmpty || _isActionPending) return;
-    _isActionPending = true;
+    final requestId = ++_playRequestId;
     _crossfadeTimer?.cancel();
     _crossfading = false;
     try {
@@ -405,6 +399,7 @@ class PlayerProvider extends ChangeNotifier {
 
       if (nextIdx != -1) {
         await _player.seek(Duration.zero, index: nextIdx);
+        if (requestId != _playRequestId) return;
         await _player.play();
       } else {
         // Fin de la queue sans repeat
@@ -412,14 +407,11 @@ class PlayerProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('next error: $e');
-    } finally {
-      _isActionPending = false;
     }
   }
 
   Future<void> previous() async {
-    if (_queue.isEmpty || _isActionPending) return;
-    _isActionPending = true;
+    final requestId = ++_playRequestId;
     _crossfadeTimer?.cancel();
     _crossfading = false;
     try {
@@ -444,11 +436,10 @@ class PlayerProvider extends ChangeNotifier {
           await _player.seek(Duration.zero);
         }
       }
+      if (requestId != _playRequestId) return;
       await _player.play();
     } catch (e) {
       debugPrint('previous error: $e');
-    } finally {
-      _isActionPending = false;
     }
   }
 
@@ -472,12 +463,10 @@ class PlayerProvider extends ChangeNotifier {
         _player.setLoopMode(LoopMode.off);
         break;
       case PlayerRepeatMode.all:
-        // just_audio_windows maps LoopMode.all/one inversely, so we swap them
-        _player.setLoopMode(LoopMode.one);
+        _player.setLoopMode(LoopMode.all);
         break;
       case PlayerRepeatMode.one:
-        // just_audio_windows maps LoopMode.all/one inversely, so we swap them
-        _player.setLoopMode(LoopMode.all);
+        _player.setLoopMode(LoopMode.one);
         break;
     }
     SharedPreferences.getInstance().then((prefs) {

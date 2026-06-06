@@ -189,7 +189,7 @@ class _SongRowState extends State<SongRow> {
           child: GestureDetector(
             onTap: () => context
                 .read<PlayerProvider>()
-                .playSong(widget.song, queue: widget.queue),
+                .playSong(widget.song, queue: widget.queue, index: widget.index),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 100),
               padding:
