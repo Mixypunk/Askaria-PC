@@ -258,13 +258,13 @@ class PlayerProvider extends ChangeNotifier {
       _isLoading = state.processingState == ProcessingState.loading ||
           state.processingState == ProcessingState.buffering;
       if (state.processingState == ProcessingState.completed) {
-        // Fin de la playlist complète
+        // Fin de la playlist complète — on délègue à next() qui gère
+        // le rebouclage (index 0 si repeat-all, rien si repeat-off).
         if (_repeatMode == PlayerRepeatMode.all) {
-          _player.seek(Duration.zero, index: 0);
-          _player.play();
+          // next() gère le wrap-around vers index 0 quand on est en fin de liste
+          next();
         } else if (_repeatMode == PlayerRepeatMode.one) {
-          _player.seek(Duration.zero);
-          _player.play();
+          _player.seek(Duration.zero).then((_) => _player.play());
         }
       }
       _updateWidget();
