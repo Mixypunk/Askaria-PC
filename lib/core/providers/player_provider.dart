@@ -38,7 +38,6 @@ class PlayerProvider extends ChangeNotifier {
   String? _error;
   bool _disposed = false;
   bool _hasScrobbled = false;
-  String? _pendingDeezerHash;
 
   // Lyrics
   String? _lyrics;
@@ -268,27 +267,6 @@ class PlayerProvider extends ChangeNotifier {
       _isLoading = state.processingState == ProcessingState.loading ||
           state.processingState == ProcessingState.buffering;
       if (state.processingState == ProcessingState.completed) {
-        final current = currentSong;
-        if (current != null && current.hash.startsWith('dz_') && _pendingDeezerHash != null) {
-          // Bascule automatique vers le fichier local à 30 secondes
-          final newSong = Song(
-            hash: _pendingDeezerHash!,
-            title: current.title,
-            artist: current.artist,
-            album: current.album,
-            albumHash: '',
-            artistHash: '',
-            duration: current.duration,
-            image: _pendingDeezerHash,
-          );
-          _queue[_currentIndex] = newSong;
-          _pendingDeezerHash = null;
-          _rebuildPlaylist(startIndex: _currentIndex).then((_) {
-            _player.seek(const Duration(seconds: 30)).then((_) => _player.play());
-          });
-          return;
-        }
-
         // Fin de la playlist complète — on délègue à next() qui gère
         // le rebouclage (index 0 si repeat-all, rien si repeat-off).
         if (_repeatMode == PlayerRepeatMode.all) {
@@ -405,18 +383,36 @@ class PlayerProvider extends ChangeNotifier {
       if (requestId != _playRequestId) return;
       _addToHistory(song);
       
-      if (song.hash.startsWith('dz_')) {
-        _pendingDeezerHash = null;
-        _api.downloadDeezerTrack(song.hash.substring(3)).then((hash) {
-          if (hash != null) _pendingDeezerHash = hash;
-        });
-      }
-      
       await _player.play();
       _fetchLyrics();
       _fetchColors();
       _persistQueue();
       if (mounted) notifyListeners();
+
+      // Deezer background downloading and hot-swapping
+      if (song.hash.startsWith('dz_')) {
+        final deezerId = song.hash.substring(3);
+        _api.downloadDeezerTrack(deezerId).then((newHash) async {
+          if (newHash != null && currentSong?.hash == song.hash && _disposed == false) {
+            final currentPos = _player.position;
+            final updatedSong = Song(
+              hash: newHash,
+              title: song.title,
+              artist: song.artist,
+              album: song.album,
+              albumHash: song.albumHash,
+              artistHash: song.artistHash,
+              duration: song.duration,
+              image: song.image,
+            );
+            _queue[_currentIndex] = updatedSong;
+            await _playlist.removeRange(_currentIndex, _currentIndex + 1);
+            await _playlist.insert(_currentIndex, _buildSource(updatedSong));
+            await _player.seek(currentPos, index: _currentIndex);
+            if (mounted) notifyListeners();
+          }
+        });
+      }
     } catch (e) {
       debugPrint('playSong error: $e');
     }
