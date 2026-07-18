@@ -266,21 +266,26 @@ class _SongRowState extends State<_SongRow> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: CachedNetworkImage(
-                  imageUrl: widget.api.getArtworkUrl(widget.song.image ?? widget.song.hash),
-                  httpHeaders: widget.api.authHeaders,
-                  width: 38, height: 38,
-                  memCacheWidth: 76,
-                  memCacheHeight: 76,
+                child: Builder(
+                  builder: (context) {
+                    final songImg = (widget.song.image != null && widget.song.image!.isNotEmpty) ? widget.song.image! : widget.song.hash;
+                    final url = widget.api.getArtworkUrl(songImg);
+                    return CachedNetworkImage(
+                      imageUrl: url,
+                      httpHeaders: url.startsWith(widget.api.baseUrl) ? widget.api.authHeaders : null,
+                      width: 38, height: 38,
+                      memCacheWidth: 76,
+                      memCacheHeight: 76,
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) => Container(
                     width: 38, height: 38,
                     color: Sp.bg4,
                     child: const Icon(Icons.music_note_rounded, color: Sp.t3, size: 20),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
+                );
+              }),
+            ),
+            const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

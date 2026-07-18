@@ -298,7 +298,7 @@ class _WebCardState extends State<WebCard> {
                               memCacheWidth: 258,
                               memCacheHeight: 258,
                               fit: BoxFit.cover,
-                              httpHeaders: api.authHeaders,
+                              httpHeaders: widget.imageUrl!.startsWith(api.baseUrl) ? api.authHeaders : null,
                               errorWidget: (_, __, ___) => const Center(
                                   child: Icon(Icons.music_note_rounded, color: Sp.t3, size: 40)),
                             )

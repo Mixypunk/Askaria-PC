@@ -206,23 +206,26 @@ class _LyricsOverlayState extends State<LyricsOverlay>
           if (player.song != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(7),
-              child: CachedNetworkImage(
-                imageUrl:
-                    _api.getArtworkUrl(player.song!.image ?? player.song!.hash),
-                httpHeaders: _api.authHeaders,
-                width: 46,
-                height: 46,
-                memCacheWidth: 92,
-                memCacheHeight: 92,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => Container(
-                  width: 46,
-                  height: 46,
-                  color: Sp.bg4,
-                  child: const Icon(Icons.music_note_rounded, color: Sp.t3),
-                ),
+              child: Builder(
+                builder: (context) {
+                  final url = _api.getArtworkUrl(player.song!.image ?? player.song!.hash);
+                  return CachedNetworkImage(
+                    imageUrl: url,
+                    httpHeaders: url.startsWith(_api.baseUrl) ? _api.authHeaders : null,
+                    width: 46,
+                    height: 46,
+                    memCacheWidth: 92,
+                    memCacheHeight: 92,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => Container(
+                      width: 46,
+                      height: 46,
+                      color: Sp.bg4,
+                      child: const Icon(Icons.music_note_rounded, color: Sp.t3),
+                    ),
+                  );
+                }),
               ),
-            ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

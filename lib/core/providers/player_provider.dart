@@ -584,8 +584,10 @@ class PlayerProvider extends ChangeNotifier {
   void _updateWidget() {
     if (currentSong == null) return;
     final song = currentSong!;
-    final artUrl =
-        '${_api.baseUrl}/img/thumbnail/${song.image ?? song.hash}';
+    final songImg = song.image ?? song.hash;
+    final artUrl = songImg.startsWith('http')
+        ? songImg
+        : '${_api.baseUrl}/img/thumbnail/$songImg';
     WidgetService.instance.update(
       title:     song.title,
       artist:    song.artist,
