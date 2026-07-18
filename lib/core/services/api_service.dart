@@ -1053,7 +1053,7 @@ class SwingApiService {
   Future<bool> reactivateUser(String userId) async {
     try {
       final uri = Uri.parse('$_baseUrl/users/$userId/activate');
-      final r = await _authedPatch(uri);
+      final r = await _authedPatch(uri, body: json.encode({}));
       return r.statusCode == 200;
     } catch (_) { return false; }
   }
@@ -1063,7 +1063,7 @@ class SwingApiService {
       final uri = Uri.parse('$_baseUrl/users/$userId/permissions').replace(
         queryParameters: {'can_download': canDownload.toString()},
       );
-      final r = await _authedPatch(uri);
+      final r = await _authedPatch(uri, body: json.encode({}));
       return r.statusCode == 200;
     } catch (_) { return false; }
   }

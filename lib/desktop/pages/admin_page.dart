@@ -302,7 +302,11 @@ class _UserRow extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     try {
-                      await api.reactivateUser(user['id'].toString());
+                      final success = await api.reactivateUser(user['id'].toString());
+                      if (!success) {
+                        if (context.mounted) ToastService.show(context, 'Erreur serveur lors de la réactivation');
+                        return;
+                      }
                       onDeleted();
                       if (context.mounted) {
                         ToastService.show(context, 'Utilisateur réactivé');
