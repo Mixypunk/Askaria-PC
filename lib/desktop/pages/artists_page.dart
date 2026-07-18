@@ -19,7 +19,6 @@ class _ArtistsPageState extends State<ArtistsPage> {
   final _api = SwingApiService();
   List<Artist> _artists = [];
   bool _loading = true;
-  Artist? _selected;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -37,38 +36,50 @@ class _ArtistsPageState extends State<ArtistsPage> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator(color: Sp.ac));
 
-    if (_selected != null) {
-      return _ArtistDetailView(
-        artist: _selected!,
-        api: _api,
-        onBack: () => setState(() => _selected = null),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
           padding: const EdgeInsets.fromLTRB(28, 26, 28, 22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Artistes',
-                  style: TextStyle(fontFamily: 'Segoe UI', fontSize: 24, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3)),
-              Text('${_artists.length} artistes', style: const TextStyle(color: Sp.t2, fontSize: 12)),
-            ],
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Artistes',
+                    style: TextStyle(fontFamily: 'Segoe UI', fontSize: 24, fontWeight: FontWeight.w800, color: Sp.t1, letterSpacing: -0.3)),
+                Text('${_artists.length} artistes', style: const TextStyle(color: Sp.t2, fontSize: 12)),
+              ],
+            ),
           ),
         ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
-            child: Wrap(
-              spacing: 13, runSpacing: 13,
-              children: _artists.map((a) => _ArtistCard(
-                artist: a,
-                api: _api,
-                onTap: () => setState(() => _selected = a),
-              )).toList(),
+        SliverPadding(
+          padding: Sp.pagePaddingNoTop,
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 180,
+              mainAxisSpacing: 13,
+              crossAxisSpacing: 13,
+              childAspectRatio: 0.75,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final a = _artists[index];
+                return _ArtistCard(
+                  artist: a,
+                  api: _api,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ArtistDetailView(
+                          artist: a,
+                          api: _api,
+                          onBack: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+              childCount: _artists.length,
             ),
           ),
         ),
@@ -160,16 +171,16 @@ class _ArtistCardState extends State<_ArtistCard> {
   }
 }
 
-class _ArtistDetailView extends StatefulWidget {
+class ArtistDetailView extends StatefulWidget {
   final Artist artist;
   final SwingApiService api;
   final VoidCallback onBack;
-  const _ArtistDetailView({required this.artist, required this.api, required this.onBack});
+  const ArtistDetailView({super.key, required this.artist, required this.api, required this.onBack});
   @override
-  State<_ArtistDetailView> createState() => _ArtistDetailViewState();
+  State<ArtistDetailView> createState() => ArtistDetailViewState();
 }
 
-class _ArtistDetailViewState extends State<_ArtistDetailView> {
+class ArtistDetailViewState extends State<ArtistDetailView> {
   List<Album> _albums = [];
   List<Song> _tracks = [];
   bool _loading = true;
@@ -201,7 +212,7 @@ class _ArtistDetailViewState extends State<_ArtistDetailView> {
     final imgUrl = '${widget.api.baseUrl}/img/artist/small/${widget.artist.image}';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 26, 28, 110),
+      padding: Sp.pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

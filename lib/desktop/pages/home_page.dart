@@ -6,6 +6,8 @@ import '../../core/services/api_service.dart';
 import '../../core/models/album.dart';
 import '../../core/providers/player_provider.dart';
 import 'album_detail_page.dart';
+import 'artists_page.dart';
+import '../../core/service_locator.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -46,8 +48,16 @@ class _HomePageState extends State<HomePage> {
           _loading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de chargement: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -79,7 +89,7 @@ class _HomePageState extends State<HomePage> {
     if (_loading) return const Center(child: CircularProgressIndicator(color: Sp.ac));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 26, 28, 110),
+      padding: Sp.pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -123,7 +133,15 @@ class _HomePageState extends State<HomePage> {
                 subtitle: '${a.albumCount} album${a.albumCount != 1 ? 's' : ''}',
                 imageUrl: '${_api.baseUrl}/img/artist/small/${a.image}',
                 isCircular: true,
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => ArtistDetailView(
+                      artist: a,
+                      api: sl<SwingApiService>(),
+                      onBack: () => Navigator.of(context).pop(),
+                    ),
+                  ));
+                },
               )).toList(),
             ),
             const SizedBox(height: 28),

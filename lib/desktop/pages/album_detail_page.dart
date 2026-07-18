@@ -48,7 +48,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     final artUrl = _api.getArtworkUrl(widget.album.image.isNotEmpty ? widget.album.image : widget.album.hash);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 26, 28, 110),
+      padding: Sp.pagePadding,
       child: Column(
         children: [
           // Header façon Web (.dh)

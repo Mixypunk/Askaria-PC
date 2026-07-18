@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,12 +59,24 @@ class SwingApiService {
   }
 
   // ── SETTINGS ───────────────────────────────────────────────────────────
+  static const _secureStorage = FlutterSecureStorage();
+
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _baseUrl = prefs.getString('server_url') ?? 'https://askaria-music.duckdns.org';
     if (_baseUrl.endsWith('/')) _baseUrl = _baseUrl.substring(0, _baseUrl.length - 1);
-    _accessToken  = prefs.getString('access_token');
-    _refreshToken = prefs.getString('refresh_token');
+    _accessToken  = await _secureStorage.read(key: 'access_token');
+    _refreshToken = await _secureStorage.read(key: 'refresh_token');
+    // Migration depuis SharedPreferences (ancienne version)
+    if (_accessToken == null) {
+      _accessToken = prefs.getString('access_token');
+      _refreshToken = prefs.getString('refresh_token');
+      if (_accessToken != null) {
+        await _storeTokens(_accessToken!, _refreshToken);
+        await prefs.remove('access_token');
+        await prefs.remove('refresh_token');
+      }
+    }
   }
 
   Future<void> saveUrl(String url) async {
@@ -75,10 +88,9 @@ class SwingApiService {
   Future<void> _storeTokens(String access, String? refresh) async {
     _accessToken = access;
     _refreshToken = refresh;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', access);
+    await _secureStorage.write(key: 'access_token', value: access);
     if (refresh != null) {
-      await prefs.setString('refresh_token', refresh);
+      await _secureStorage.write(key: 'refresh_token', value: refresh);
     }
   }
 
@@ -90,6 +102,11 @@ class SwingApiService {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'username': username, 'password': password}),
       ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 429) {
+        final retryAfter = response.headers['retry-after'] ?? '60';
+        throw Exception('Trop de tentatives. Réessayez dans $retryAfter secondes.');
+      }
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -107,6 +124,9 @@ class SwingApiService {
       return false;
     } catch (e) {
       debugPrint('Login error: $e');
+      if (e is Exception && e.toString().contains('Trop de tentatives')) {
+        rethrow;
+      }
       return false;
     }
   }
@@ -135,9 +155,8 @@ class SwingApiService {
   Future<void> logout() async {
     _accessToken = null;
     _refreshToken = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    await prefs.remove('refresh_token');
+    await _secureStorage.delete(key: 'access_token');
+    await _secureStorage.delete(key: 'refresh_token');
   }
 
   // GET /auth/pair/code
@@ -151,9 +170,20 @@ class SwingApiService {
     return null;
   }
 
+  Completer<bool>? _refreshCompleter;
+
   // ── Refresh token automatique ────────────────────────────────────────
   Future<bool> _refreshAccessToken() async {
     if (_refreshToken == null) return false;
+
+    // Si un refresh est déjà en cours, on attend sa complétion
+    if (_refreshCompleter != null) {
+      return _refreshCompleter!.future;
+    }
+
+    _refreshCompleter = Completer<bool>();
+    bool success = false;
+
     try {
       final r = await http.post(
         Uri.parse('$_baseUrl/auth/refresh'),
@@ -165,11 +195,16 @@ class SwingApiService {
         final token = data['accesstoken'] ?? data['access_token'] ?? data['token'];
         if (token != null) {
           await _storeTokens(token.toString(), _refreshToken);
-          return true;
+          success = true;
         }
       }
-    } catch (_) {}
-    return false;
+    } catch (e) {
+      debugPrint('Error refreshing token: $e');
+    }
+
+    _refreshCompleter!.complete(success);
+    _refreshCompleter = null;
+    return success;
   }
 
   // Requête GET avec retry automatique si 401
@@ -213,6 +248,19 @@ class SwingApiService {
     return r;
   }
 
+  Future<http.Response> _authedPatch(Uri uri, {Object? body}) async {
+    var r = await http.patch(uri, headers: _headers, body: body)
+        .timeout(const Duration(seconds: 10));
+    if (r.statusCode == 401) {
+      final refreshed = await _refreshAccessToken();
+      if (refreshed) {
+        r = await http.patch(uri, headers: _headers, body: body)
+            .timeout(const Duration(seconds: 10));
+      }
+    }
+    return r;
+  }
+
   Future<bool> checkAuth() async {
     // Pas de token du tout → login obligatoire
     if (_accessToken == null) return false;
@@ -220,9 +268,6 @@ class SwingApiService {
       final response = await _authedGet(Uri.parse('$_baseUrl/auth/user'))
           .timeout(const Duration(seconds: 6));
       if (response.statusCode == 200) return true;
-      if (response.statusCode == 401) {
-        return await _refreshAccessToken();
-      }
       return false;
     } on TimeoutException catch (_) {
       // Timeout = serveur inaccessible mais token présent → mode offline
@@ -253,24 +298,22 @@ class SwingApiService {
 
   // ── SONGS (POST /folder) ───────────────────────────────────────────────
   Future<List<Song>> getSongs({int start = 0, int limit = 500}) async {
-    final response = await _authedPost(Uri.parse('$_baseUrl/folder'),
-      body: json.encode({
-        'folder': '/music/',
-        'start': start,
-        'limit': limit,
-        'tracks_only': true,
-        'sorttracksby': 'default',
-        'tracksort_reverse': false,
-        'foldersort_reverse': false,
-        'sortfoldersby': 'lastmod',
-      }),
-    );
-    if (response.statusCode != 200) {
-      throw Exception('getSongs HTTP ${response.statusCode}');
+    try {
+      final response = await _authedPost(Uri.parse('$_baseUrl/folder'),
+        body: json.encode({
+          'folder': '/music/',
+          'start': start,
+          'limit': limit,
+        }),
+      );
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body);
+      final items = data['tracks'] ?? [];
+      return (items as List).map((e) => Song.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('getSongs error: $e');
+      return [];
     }
-    final data = json.decode(response.body);
-    final items = data['tracks'] ?? [];
-    return (items as List).map((e) => Song.fromJson(e)).toList();
   }
 
   // ── SEARCH ─────────────────────────────────────────────────────────────
@@ -304,59 +347,73 @@ class SwingApiService {
 
   // ── ALBUMS ─────────────────────────────────────────────────────────────
   Future<List<Album>> getAlbums({int start = 0, int limit = 500}) async {
-    final uri = Uri.parse('$_baseUrl/getall/albums').replace(
-      queryParameters: {
-        'start': '$start',
-        'limit': '$limit',
-        'sortby': 'created_date',
-        'reverse': '1',
-      },
-    );
-    final response = await _authedGet(uri);
-    if (response.statusCode != 200) {
-      throw Exception('getAlbums HTTP ${response.statusCode}');
+    try {
+      final uri = Uri.parse('$_baseUrl/getall/albums').replace(
+        queryParameters: {
+          'start': '$start',
+          'limit': '$limit',
+          'sortby': 'created_date',
+          'reverse': '1',
+        },
+      );
+      final response = await _authedGet(uri);
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body);
+      final items = data['items'] ?? data['albums'] ?? (data is List ? data : []);
+      return (items as List).map((e) => Album.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('getAlbums error: $e');
+      return [];
     }
-    final data = json.decode(response.body);
-    final items = data['items'] ?? data['albums'] ?? (data is List ? data : []);
-    return (items as List).map((e) => Album.fromJson(e)).toList();
   }
 
   // POST /album avec {albumhash: hash}
   Future<List<Song>> getAlbumTracks(String albumHash) async {
-    final response = await _authedGet(Uri.parse('$_baseUrl/album/$albumHash/tracks'));
-    if (response.statusCode != 200) {
-      throw Exception('Album tracks HTTP ${response.statusCode}');
+    try {
+      final response = await _authedGet(Uri.parse('$_baseUrl/album/$albumHash/tracks'));
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body);
+      final tracks = data is List ? data : (data['tracks'] ?? []);
+      return (tracks as List).map((e) => Song.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('getAlbumTracks error: $e');
+      return [];
     }
-    final data = json.decode(response.body);
-    final tracks = data is List ? data : (data['tracks'] ?? []);
-    return (tracks as List).map((e) => Song.fromJson(e)).toList();
   }
 
   // ── ARTISTS ────────────────────────────────────────────────────────────
   Future<List<Artist>> getArtists({int start = 0, int limit = 500}) async {
-    final uri = Uri.parse('$_baseUrl/getall/artists').replace(
-      queryParameters: {
-        'start': '$start',
-        'limit': '$limit',
-        'sortby': 'name',
-        'reverse': '0',
-      },
-    );
-    final response = await _authedGet(uri);
-    if (response.statusCode != 200) {
-      throw Exception('getArtists HTTP ${response.statusCode}');
+    try {
+      final uri = Uri.parse('$_baseUrl/getall/artists').replace(
+        queryParameters: {
+          'start': '$start',
+          'limit': '$limit',
+          'sortby': 'name',
+          'reverse': '0',
+        },
+      );
+      final response = await _authedGet(uri);
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body);
+      final items = data['items'] ?? data['artists'] ?? (data is List ? data : []);
+      return (items as List).map((e) => Artist.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('getArtists error: $e');
+      return [];
     }
-    final data = json.decode(response.body);
-    final items = data['items'] ?? data['artists'] ?? (data is List ? data : []);
-    return (items as List).map((e) => Artist.fromJson(e)).toList();
   }
 
   Future<List<Song>> getArtistTracks(String artistHash) async {
-    final response = await _authedGet(Uri.parse('$_baseUrl/artist/$artistHash/tracks'));
-    if (response.statusCode != 200) return [];
-    final data = json.decode(response.body);
-    final tracks = data is List ? data : (data['tracks'] ?? []);
-    return (tracks as List).map((e) => Song.fromJson(e)).toList();
+    try {
+      final response = await _authedGet(Uri.parse('$_baseUrl/artist/$artistHash/tracks'));
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body);
+      final tracks = data is List ? data : (data['tracks'] ?? []);
+      return (tracks as List).map((e) => Song.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('getArtistTracks error: $e');
+      return [];
+    }
   }
 
   /// Cherche un artiste par nom — utile quand artistHash est vide
@@ -389,31 +446,33 @@ class SwingApiService {
 
   // ── PLAYLISTS ──────────────────────────────────────────────────────────
   Future<List<Playlist>> getPlaylists() async {
-    final uri = Uri.parse('$_baseUrl/playlists').replace(
-      queryParameters: {'start': '0', 'limit': '200', 'no_tracks': 'true'},
-    );
-    final response = await _authedGet(uri);
-    if (response.statusCode != 200) {
-      throw Exception('getPlaylists HTTP ${response.statusCode}');
+    try {
+      final uri = Uri.parse('$_baseUrl/playlists');
+      final response = await _authedGet(uri);
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body);
+      // Server returns {"data": [...]}
+      final items = data['data'] ?? data['playlists'] ?? data['items'] ?? (data is List ? data : []);
+      return (items as List).map((e) => Playlist.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('getPlaylists error: $e');
+      return [];
     }
-    final data = json.decode(response.body);
-    // Server returns {"data": [...]}
-    final items = data['data'] ?? data['playlists'] ?? data['items'] ?? (data is List ? data : []);
-    return (items as List).map((e) => Playlist.fromJson(e)).toList();
   }
 
   Future<List<Song>> getPlaylistTracks(String playlistId) async {
-    final uri = Uri.parse('$_baseUrl/playlists/$playlistId').replace(
-      queryParameters: {'no_tracks': 'false', 'start': '0', 'limit': '500'},
-    );
-    final response = await _authedGet(uri);
-    if (response.statusCode != 200) {
-      throw Exception('Playlist tracks HTTP ${response.statusCode}');
+    try {
+      final uri = Uri.parse('$_baseUrl/playlists/$playlistId');
+      final response = await _authedGet(uri);
+      if (response.statusCode != 200) return [];
+      final data = json.decode(response.body);
+      // Server returns {info: ..., tracks: [...]}
+      final tracks = data['tracks'] ?? (data is List ? data : []);
+      return (tracks as List).map((e) => Song.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('getPlaylistTracks error: $e');
+      return [];
     }
-    final data = json.decode(response.body);
-    // Server returns {info: ..., tracks: [...]}
-    final tracks = data['tracks'] ?? (data is List ? data : []);
-    return (tracks as List).map((e) => Song.fromJson(e)).toList();
   }
 
   // ── PLAYLIST CRUD ─────────────────────────────────────────────────────
@@ -499,14 +558,13 @@ class SwingApiService {
   // ── LYRICS ─────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>?> getLyrics(String trackHash, {String? filepath}) async {
     try {
-      final response = await http.post(
+      final response = await _authedPost(
         Uri.parse('$_baseUrl/lyrics'),
-        headers: _headers,
         body: json.encode({
           'trackhash': trackHash,
           'filepath': filepath ?? '',
         }),
-      ).timeout(const Duration(seconds: 10));
+      );
       if (response.statusCode != 200) return null;
       final data = json.decode(response.body);
       if (data['error'] != null) return null;
@@ -565,9 +623,8 @@ class SwingApiService {
   // ── FAVOURITES ────────────────────────────────────────────────────────
   Future<bool> toggleFavourite(String trackHash) async {
     try {
-      final r = await http.post(
+      final r = await _authedPost(
         Uri.parse('$_baseUrl/track/favourite'),
-        headers: _headers,
         body: json.encode({'trackhash': trackHash}),
       );
       return r.statusCode == 200;
@@ -676,11 +733,10 @@ class SwingApiService {
       if (email     != null) body['email']      = email;
       if (birthDate != null) body['birth_date'] = birthDate;
       if (bio       != null) body['bio']        = bio;
-      final r = await http.patch(
+      final r = await _authedPatch(
         Uri.parse('$_baseUrl/users/me'),
-        headers: _headers,
         body: json.encode(body),
-      ).timeout(const Duration(seconds: 10));
+      );
       if (r.statusCode == 200) return json.decode(r.body) as Map<String, dynamic>;
       final err = json.decode(r.body);
       throw Exception(err['detail'] ?? 'Erreur serveur');
@@ -690,24 +746,38 @@ class SwingApiService {
   }
 
   Future<void> changePassword(String current, String newPwd) async {
-    final r = await http.post(
-      Uri.parse('$_baseUrl/users/me/password'),
-      headers: _headers,
-      body: json.encode({'current_password': current, 'new_password': newPwd}),
-    ).timeout(const Duration(seconds: 10));
-    if (r.statusCode != 200) {
-      final err = json.decode(r.body);
-      throw Exception(err['detail'] ?? 'Erreur changement mot de passe');
+    try {
+      final r = await _authedPost(
+        Uri.parse('$_baseUrl/users/me/password'),
+        body: json.encode({'current_password': current, 'new_password': newPwd}),
+      );
+      if (r.statusCode != 200) {
+        final err = json.decode(r.body);
+        throw Exception(err['detail'] ?? 'Erreur changement mot de passe');
+      }
+    } catch (e) {
+      rethrow;
     }
   }
 
   Future<String?> uploadAvatar(List<int> imageBytes) async {
     try {
-      final r = await http.post(
+      // Avatar upload needs binary content-type, use raw authed request
+      var r = await http.post(
         Uri.parse('$_baseUrl/users/me/avatar'),
         headers: {..._headers, 'Content-Type': 'application/octet-stream'},
         body: imageBytes,
       ).timeout(const Duration(seconds: 30));
+      if (r.statusCode == 401) {
+        final refreshed = await _refreshAccessToken();
+        if (refreshed) {
+          r = await http.post(
+            Uri.parse('$_baseUrl/users/me/avatar'),
+            headers: {..._headers, 'Content-Type': 'application/octet-stream'},
+            body: imageBytes,
+          ).timeout(const Duration(seconds: 30));
+        }
+      }
       if (r.statusCode == 200) {
         final data = json.decode(r.body);
         return data['avatar'] as String?;
@@ -755,6 +825,8 @@ class SwingApiService {
   Future<String?> downloadTrack(Song song, {
     void Function(int received, int total)? onProgress,
   }) async {
+    http.Client? client;
+    IOSink? sink;
     try {
       final dir = await getApplicationDocumentsDirectory();
       final offlineDir = Directory('${dir.path}/offline');
@@ -766,25 +838,27 @@ class SwingApiService {
 
       if (await file.exists()) return file.path;
 
+      // Use stream token for download (with auto-refresh)
+      final token = await _getStreamToken();
       final uri = Uri.parse(getDownloadUrl(song.hash));
       final req  = http.Request('GET', uri);
-      req.headers['Authorization'] = 'Bearer $_accessToken';
+      req.headers['Authorization'] = 'Bearer $token';
 
-      final client   = http.Client();
+      client = http.Client();
       final streamed = await client.send(req);
 
-      if (streamed.statusCode != 200) { client.close(); return null; }
+      if (streamed.statusCode != 200) return null;
 
       final total  = streamed.contentLength ?? -1;
       int received = 0;
-      final sink   = file.openWrite();
+      sink = file.openWrite();
       await for (final chunk in streamed.stream) {
         sink.add(chunk);
         received += chunk.length;
         onProgress?.call(received, total);
       }
       await sink.close();
-      client.close();
+      sink = null;
 
       // Sauvegarder les métadonnées pour affichage dans Downloads screen
       await _saveOfflineMeta(song, file.path);
@@ -793,6 +867,9 @@ class SwingApiService {
     } catch (e) {
       debugPrint('downloadTrack error: $e');
       return null;
+    } finally {
+      try { await sink?.close(); } catch (_) {}
+      client?.close();
     }
   }
 
@@ -931,10 +1008,14 @@ class SwingApiService {
 
   // ── ADMIN — SCAN ────────────────────────────────────────────────────────
   Future<void> scanLibrary({bool incremental = false}) async {
-    final uri = Uri.parse('$_baseUrl/scan/start').replace(
-      queryParameters: {'incremental': incremental.toString()},
-    );
-    await _authedPost(uri);
+    try {
+      final uri = Uri.parse('$_baseUrl/scan/start').replace(
+        queryParameters: {'incremental': incremental.toString()},
+      );
+      await _authedPost(uri);
+    } catch (e) {
+      debugPrint('scanLibrary error: $e');
+    }
   }
 
   // ── ADMIN — USERS ──────────────────────────────────────────────────────
@@ -952,7 +1033,7 @@ class SwingApiService {
   Future<bool> createUser(String username, String password, String role) async {
     try {
       final r = await _authedPost(
-        Uri.parse('$_baseUrl/users/new'),
+        Uri.parse('$_baseUrl/users/create'),
         body: json.encode({'username': username, 'password': password, 'role': role}),
       );
       return r.statusCode == 200 || r.statusCode == 201;
@@ -969,13 +1050,20 @@ class SwingApiService {
     } catch (_) { return false; }
   }
 
+  Future<bool> reactivateUser(String userId) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/users/$userId/activate');
+      final r = await _authedPatch(uri);
+      return r.statusCode == 200;
+    } catch (_) { return false; }
+  }
+
   Future<bool> toggleDownloadPermission(String userId, bool canDownload) async {
     try {
       final uri = Uri.parse('$_baseUrl/users/$userId/permissions').replace(
         queryParameters: {'can_download': canDownload.toString()},
       );
-      final r = await http.patch(uri, headers: _headers)
-          .timeout(const Duration(seconds: 10));
+      final r = await _authedPatch(uri);
       return r.statusCode == 200;
     } catch (_) { return false; }
   }

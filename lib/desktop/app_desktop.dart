@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:provider/provider.dart';
+import '../../core/providers/player_provider.dart';
 import '../../main.dart';
 import 'components/sidebar.dart';
 import 'components/player_bar.dart';
@@ -42,7 +45,7 @@ class _AppDesktopState extends State<AppDesktop> {
   void initState() {
     super.initState();
     // Ordre identique à NavDest.values — NE PAS changer sans mettre à jour NavDest
-    _pages = const [
+    const pages = [
       HomePage(),
       SearchPage(),
       SongsPage(),
@@ -58,6 +61,10 @@ class _AppDesktopState extends State<AppDesktop> {
       AdminPage(),
       SettingsPage(),
     ];
+
+    _pages = pages.map((page) => Navigator(
+      onGenerateRoute: (settings) => MaterialPageRoute(builder: (_) => page),
+    )).toList();
     _checkUpdates();
   }
 
@@ -71,8 +78,18 @@ class _AppDesktopState extends State<AppDesktop> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Sp.bg0,
+    final player = context.read<PlayerProvider>();
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
+          player.playPause();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Scaffold(
+        backgroundColor: Sp.bg0,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kWindowCaptionHeight),
         child: SizedBox(
@@ -130,6 +147,6 @@ class _AppDesktopState extends State<AppDesktop> {
             ),
         ],
       ),
-    );
+    ));
   }
 }

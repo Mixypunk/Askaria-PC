@@ -1,4 +1,5 @@
-import 'package:dio/dio.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,20 +32,13 @@ class UpdateService {
 
   Future<UpdateInfo?> checkForUpdate() async {
     try {
-      final dio = Dio()
-        ..options.connectTimeout = const Duration(seconds: 8)
-        ..options.receiveTimeout = const Duration(seconds: 8);
-
-      final resp = await dio.get(_apiUrl, options: Options(
-        headers: {
-          'Accept': 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-        },
-        validateStatus: (s) => s != null && s < 500,
-      ));
+      final resp = await http.get(Uri.parse(_apiUrl), headers: {
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      }).timeout(const Duration(seconds: 8));
 
       if (resp.statusCode != 200) return null;
-      final data = resp.data as Map<String, dynamic>;
+      final data = json.decode(resp.body) as Map<String, dynamic>;
 
       final tagName       = (data['tag_name'] as String? ?? '').trim();
       if (tagName.isEmpty) return null;

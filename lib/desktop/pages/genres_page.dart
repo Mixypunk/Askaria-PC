@@ -58,7 +58,7 @@ class _GenresPageState extends State<GenresPage> {
           child: _genres.isEmpty
               ? const Center(child: Text('Aucun genre disponible', style: TextStyle(color: Sp.t3)))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
+                  padding: Sp.pagePaddingNoTop,
                   child: Wrap(
                     spacing: 13, runSpacing: 13,
                     children: _genres.asMap().entries.map((e) {

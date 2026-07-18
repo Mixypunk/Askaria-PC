@@ -194,70 +194,89 @@ class _PlayerCenter extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // â”€â”€ ContrÃ´les â”€â”€
+          // ——— Contrôles ———
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(
-                splashRadius: 24,
-                iconSize: 20,
-                icon: const Icon(Icons.shuffle_rounded),
-                color: shuffle ? Sp.ac : Sp.t3,
-                onPressed: player.toggleShuffle,
+              Tooltip(
+                message: 'Mode Aléatoire',
+                child: IconButton(
+                  splashRadius: 24,
+                  iconSize: 20,
+                  icon: const Icon(Icons.shuffle_rounded),
+                  color: shuffle ? Sp.ac : Sp.t3,
+                  onPressed: player.toggleShuffle,
+                ),
               ),
-              IconButton(
-                splashRadius: 24,
-                iconSize: 24,
-                icon: const Icon(Icons.skip_previous_rounded),
-                color: Sp.t1,
-                onPressed: player.previous,
+              Tooltip(
+                message: 'Précédent',
+                child: IconButton(
+                  splashRadius: 24,
+                  iconSize: 24,
+                  icon: const Icon(Icons.skip_previous_rounded),
+                  color: Sp.t1,
+                  onPressed: player.previous,
+                ),
               ),
               const SizedBox(width: 10),
               // Bouton Play/Pause
-              Container(
-                width: 36,
-                height: 36,
-                decoration:
-                    const BoxDecoration(color: Sp.t1, shape: BoxShape.circle),
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  splashRadius: 18,
-                  icon: Icon(
-                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Sp.bg0,
-                    size: 22,
+              Tooltip(
+                message: isPlaying ? 'Pause' : 'Lecture',
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration:
+                      const BoxDecoration(color: Sp.t1, shape: BoxShape.circle),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    splashRadius: 18,
+                    icon: Icon(
+                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      color: Sp.bg0,
+                      size: 22,
+                    ),
+                    onPressed: player.playPause,
                   ),
-                  onPressed: player.playPause,
                 ),
               ),
               const SizedBox(width: 10),
-              IconButton(
-                splashRadius: 24,
-                iconSize: 24,
-                icon: const Icon(Icons.skip_next_rounded),
-                color: Sp.t1,
-                onPressed: player.next,
-              ),
-              IconButton(
-                splashRadius: 24,
-                iconSize: 20,
-                icon: Icon(
-                  repeatMode == PlayerRepeatMode.one
-                      ? Icons.repeat_one_rounded
-                      : Icons.repeat_rounded,
+              Tooltip(
+                message: 'Suivant',
+                child: IconButton(
+                  splashRadius: 24,
+                  iconSize: 24,
+                  icon: const Icon(Icons.skip_next_rounded),
+                  color: Sp.t1,
+                  onPressed: player.next,
                 ),
-                color: repeatMode != PlayerRepeatMode.off ? Sp.ac : Sp.t3,
-                onPressed: player.toggleRepeat,
+              ),
+              Tooltip(
+                message: 'Répéter',
+                child: IconButton(
+                  splashRadius: 24,
+                  iconSize: 20,
+                  icon: Icon(
+                    repeatMode == PlayerRepeatMode.one
+                        ? Icons.repeat_one_rounded
+                        : Icons.repeat_rounded,
+                  ),
+                  color: repeatMode != PlayerRepeatMode.off ? Sp.ac : Sp.t3,
+                  onPressed: player.toggleRepeat,
+                ),
               ),
               // Paroles
-              IconButton(
-                splashRadius: 20,
-                padding: const EdgeInsets.all(4),
-                icon: Icon(
-                  Icons.lyrics_outlined,
-                  color: hasSong ? Sp.t3 : Sp.t4,
-                  size: 18,
+              Tooltip(
+                message: 'Paroles',
+                child: IconButton(
+                  splashRadius: 20,
+                  padding: const EdgeInsets.all(4),
+                  icon: Icon(
+                    Icons.lyrics_outlined,
+                    color: hasSong ? Sp.t3 : Sp.t4,
+                    size: 18,
+                  ),
+                  onPressed: onLyrics,
                 ),
-                onPressed: onLyrics,
               ),
             ],
           ),

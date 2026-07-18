@@ -85,7 +85,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
               ? const _EmptyCenter(icon: Icons.queue_music_rounded, message: 'Aucune playlist',
                   subtitle: 'Créez votre première playlist')
               : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
+                  padding: Sp.pagePaddingNoTop,
                   child: Wrap(
                     spacing: 13, runSpacing: 13,
                     children: _playlists.map((pl) => _PlaylistCard(
@@ -144,11 +144,13 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
         ),
       ),
     );
+    final nameText = nameCtrl.text.trim();
+    final descText = descCtrl.text.trim();
     nameCtrl.dispose();
     descCtrl.dispose();
     if (result == true) {
-      await _api.createPlaylist(nameCtrl.text.trim(),
-          description: descCtrl.text.trim(), isPublic: isPublic);
+      await _api.createPlaylist(nameText,
+          description: descText, isPublic: isPublic);
       await _load();
       if (context.mounted) ToastService.show(context, 'Playlist créée !');
     }
@@ -250,7 +252,7 @@ class _PlaylistDetailViewState extends State<_PlaylistDetailView> {
   Widget build(BuildContext context) {
     final player = context.read<PlayerProvider>();
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 26, 28, 110),
+      padding: Sp.pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -446,7 +448,7 @@ class _PublicPlaylistsViewState extends State<_PublicPlaylistsView> {
         else
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
+              padding: Sp.pagePaddingNoTop,
               child: Wrap(
                 spacing: 13, runSpacing: 13,
                 children: _pls.map((pl) => _PlaylistCard(

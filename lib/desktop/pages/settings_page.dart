@@ -13,7 +13,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(28, 26, 28, 110),
+      padding: Sp.pagePadding,
       children: [
         const Padding(
           padding: EdgeInsets.only(bottom: 22),

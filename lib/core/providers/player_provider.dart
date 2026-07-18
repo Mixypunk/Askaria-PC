@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,13 +9,16 @@ import '../services/api_service.dart';
 import '../services/color_service.dart';
 import '../services/widget_service.dart';
 import '../services/eq_service.dart';
+import '../services/websocket_service.dart';
+import '../services/lyrics_service.dart';
+import '../service_locator.dart';
 
 enum PlayerRepeatMode { off, all, one }
 
 class PlayerProvider extends ChangeNotifier {
   late final AudioPlayer _player;
-  final SwingApiService _api = SwingApiService();
-  final _random = Random();
+  final SwingApiService _api = sl<SwingApiService>();
+  late final LyricsService _lyricsService = sl<LyricsService>();
 
   // ConcatenatingAudioSource — Android voit une vraie playlist
   // → affiche les boutons Précédent/Suivant dans la notification
@@ -35,6 +37,7 @@ class PlayerProvider extends ChangeNotifier {
   bool _shuffle = false;
   String? _error;
   bool _disposed = false;
+  bool _hasScrobbled = false;
 
   // Lyrics
   String? _lyrics;
@@ -104,7 +107,7 @@ class PlayerProvider extends ChangeNotifier {
     _persistDebounceTimer?.cancel();
     _persistDebounceTimer = Timer(
       const Duration(milliseconds: _persistDebounceMs),
-      _persistQueue,
+      () => _persistQueue(onlyState: true),
     );
   }
 
@@ -180,7 +183,7 @@ class PlayerProvider extends ChangeNotifier {
         // Passer au titre suivant (fire-and-forget, sans bloquer le timer)
         _player.setVolume(0).then((_) async {
           if (!mounted) return;
-          await next();
+          await next(fromCrossfade: true);
           _fadeIn(startVol);
         });
         return;
@@ -208,6 +211,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   PlayerProvider() {
+    WebSocketService.instance.connect();
     _initPlayer();
     _loadFavourites();
     _loadCrossfade();
@@ -245,6 +249,11 @@ class PlayerProvider extends ChangeNotifier {
       if (_isRestoringQueue) return;
       if (idx != null && idx != _currentIndex && idx < _queue.length) {
         _currentIndex = idx;
+        _hasScrobbled = false;
+        final current = currentSong;
+        if (current != null) {
+          WebSocketService.instance.broadcastNowPlaying(current.hash, current.title);
+        }
         _fetchLyrics();
         _fetchColors();
         _updateWidget();
@@ -273,6 +282,18 @@ class PlayerProvider extends ChangeNotifier {
 
     _player.positionStream.listen((pos) {
       _position = pos;
+      
+      // Scrobbling à 80%
+      if (!_hasScrobbled && _duration.inSeconds > 0) {
+        if (pos.inSeconds / _duration.inSeconds >= 0.8) {
+          _hasScrobbled = true;
+          final current = currentSong;
+          if (current != null) {
+            WebSocketService.instance.scrobble(current.hash, pos.inSeconds, _duration.inSeconds);
+          }
+        }
+      }
+
       // Déclencher le crossfade N secondes avant la fin
       if (_crossfadeSeconds > 0 &&
           !_crossfading &&
@@ -371,6 +392,8 @@ class PlayerProvider extends ChangeNotifier {
     final actuallyPlaying = _player.playing;
     try {
       if (actuallyPlaying) {
+        _crossfadeTimer?.cancel();
+        _crossfading = false;
         await _player.pause();
       } else {
         await _player.play();
@@ -380,24 +403,17 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> next() async {
+  Future<void> next({bool fromCrossfade = false}) async {
     final requestId = ++_playRequestId;
     _crossfadeTimer?.cancel();
     _crossfading = false;
     try {
       // Restaurer le volume avant de passer au titre suivant
-      if (_player.volume < _volume) await _player.setVolume(_volume);
+      if (!fromCrossfade && _player.volume < _volume) await _player.setVolume(_volume);
       
-      int nextIdx = -1;
-      if (_shuffle) {
-        nextIdx = _random.nextInt(_queue.length);
-      } else if (_currentIndex < _queue.length - 1) {
-        nextIdx = _currentIndex + 1;
-      } else if (_repeatMode == PlayerRepeatMode.all) {
-        nextIdx = 0;
-      }
+      int? nextIdx = _player.nextIndex;
 
-      if (nextIdx != -1) {
+      if (nextIdx != null) {
         await _player.seek(Duration.zero, index: nextIdx);
         if (requestId != _playRequestId) return;
         await _player.play();
@@ -420,16 +436,9 @@ class PlayerProvider extends ChangeNotifier {
         // Revenir au début du titre courant si on est passé 3s
         await _player.seek(Duration.zero);
       } else {
-        int prevIdx = -1;
-        if (_shuffle) {
-          prevIdx = _random.nextInt(_queue.length);
-        } else if (_currentIndex > 0) {
-          prevIdx = _currentIndex - 1;
-        } else if (_repeatMode == PlayerRepeatMode.all) {
-          prevIdx = _queue.length - 1;
-        }
+        int? prevIdx = _player.previousIndex;
 
-        if (prevIdx != -1) {
+        if (prevIdx != null) {
           await _player.seek(Duration.zero, index: prevIdx);
         } else {
           // Revenir au début du titre courant si pas de précédent
@@ -552,15 +561,21 @@ class PlayerProvider extends ChangeNotifier {
 
 
   // ── Dynamic colors ─────────────────────────────────────────────────────
+  String? _colorFetchingFor;
+
   Future<void> _fetchColors() async {
     if (currentSong == null || !mounted) return;
     final song = currentSong!;
     final cacheKey = song.image ?? song.hash;
+    _colorFetchingFor = cacheKey;
     try {
       final url = '${_api.baseUrl}/img/thumbnail/$cacheKey';
       final r = await http
           .get(Uri.parse(url), headers: _api.authHeaders)
           .timeout(const Duration(seconds: 6));
+          
+      if (!mounted || _colorFetchingFor != cacheKey) return;
+      
       if (r.statusCode == 200 && r.bodyBytes.isNotEmpty && mounted) {
         _dynamicColors = await ColorService.fromBytes(cacheKey, r.bodyBytes);
         if (mounted) notifyListeners();
@@ -585,29 +600,16 @@ class PlayerProvider extends ChangeNotifier {
     _lyricsLoading = true;
     if (mounted) notifyListeners();
 
-    final result = await _api.getLyrics(
-      targetHash,
-      filepath: currentSong?.filepath,
-    );
+    final result = await _lyricsService.fetchLyrics(currentSong!);
 
     // RACE CONDITION GUARD : si la chanson a changé pendant le fetch, on ignore
     if (!mounted || _lyricsFetchingFor != targetHash) return;
 
     if (result != null) {
-      _lyricsSynced = result['synced'] == true;
-      final raw = result['lyrics'];
-      if (_lyricsSynced && raw is List) {
-        _syncedLines = List<Map<String, dynamic>>.from(raw.map((e) => {
-          'time': (e['time'] as num).toInt(),
-          'text': (e['text'] ?? '').toString(),
-        }));
-        _lyrics = 'synced';
-      } else if (raw is List) {
-        _unsyncedLines = List<String>.from(raw.map((e) => e.toString()));
-        _lyrics = _unsyncedLines!.join('\n');
-      } else if (raw is String) {
-        _lyrics = raw;
-      }
+      _lyricsSynced = result.isSynced;
+      _syncedLines = result.syncedLines;
+      _unsyncedLines = result.unsyncedLines;
+      _lyrics = result.rawText;
     }
 
     _lyricsLoading = false;
@@ -749,17 +751,19 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _persistQueue() async {
+  Future<void> _persistQueue({bool onlyState = false}) async {
     if (_queue.isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final queueJson = json.encode(_queue.map((s) => {
-        'trackhash': s.hash, 'hash': s.hash, 'title': s.title,
-        'artist': s.artist, 'album': s.album, 'albumhash': s.albumHash,
-        'artisthash': s.artistHash, 'duration': s.duration,
-        'filepath': s.filepath, 'image': s.image,
-      }).toList());
-      await prefs.setString('queue_json', queueJson);
+      if (!onlyState) {
+        final queueJson = json.encode(_queue.map((s) => {
+          'trackhash': s.hash, 'hash': s.hash, 'title': s.title,
+          'artist': s.artist, 'album': s.album, 'albumhash': s.albumHash,
+          'artisthash': s.artistHash, 'duration': s.duration,
+          'filepath': s.filepath, 'image': s.image,
+        }).toList());
+        await prefs.setString('queue_json', queueJson);
+      }
       await prefs.setInt('queue_index', _currentIndex);
       await prefs.setInt('queue_position', _position.inSeconds);
     } catch (_) {}

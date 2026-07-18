@@ -45,7 +45,7 @@ class _DecadesPageState extends State<DecadesPage> {
           child: _decades.isEmpty
               ? const Center(child: Text('Aucune décennie disponible', style: TextStyle(color: Sp.t3)))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
+                  padding: Sp.pagePaddingNoTop,
                   child: Wrap(
                     spacing: 13, runSpacing: 13,
                     children: _decades.map((d) => _DecadeCard(

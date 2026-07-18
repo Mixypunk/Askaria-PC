@@ -65,7 +65,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_loading) return const Center(child: CircularProgressIndicator(color: Sp.ac));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 26, 28, 110),
+      padding: Sp.pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

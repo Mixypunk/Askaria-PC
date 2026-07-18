@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../main.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/websocket_service.dart';
 import '../components/toast_service.dart';
 
 class AdminPage extends StatefulWidget {
@@ -17,9 +19,26 @@ class _AdminPageState extends State<AdminPage> {
   String _scanStatus = '';
   bool _scanning = false;
   Map<String, dynamic> _lastfm = {};
+  StreamSubscription? _scanSub;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+    _scanSub = WebSocketService.instance.scanProgressStream.listen((data) {
+      if (mounted && _scanning) {
+        setState(() {
+          _scanStatus = 'Scan : ${data['done']}/${data['total']} - ${data['current']}';
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scanSub?.cancel();
+    super.dispose();
+  }
 
   Future<void> _load() async {
     try {
@@ -54,7 +73,7 @@ class _AdminPageState extends State<AdminPage> {
     if (_loading) return const Center(child: CircularProgressIndicator(color: Sp.ac));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 26, 28, 110),
+      padding: Sp.pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -276,53 +295,79 @@ class _UserRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 7),
-            // Bouton Gérer (désactiver / supprimer)
-            OutlinedButton(
-              onPressed: () async {
-                final result = await showDialog<String>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: Sp.bg2,
-                    title: Text("Gestion de ${user['username']}", style: const TextStyle(color: Sp.t1)),
-                    content: const Text(
-                      "Voulez-vous désactiver ou supprimer définitivement cet utilisateur ?\nLa suppression définitive effacera ses playlists et historiques.",
-                      style: TextStyle(color: Sp.t2, fontSize: 13.5),
-                    ),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.of(ctx).pop('cancel'), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
-                        onPressed: () => Navigator.of(ctx).pop('deactivate'),
-                        child: const Text('Désactiver', style: TextStyle(color: Colors.white)),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
-                        onPressed: () => Navigator.of(ctx).pop('delete'),
-                        child: const Text('Supprimer définitivement', style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                );
-                if (result == 'deactivate' || result == 'delete') {
-                  try {
-                    await api.deleteUser(user['id'].toString(), hardDelete: result == 'delete');
-                    onDeleted();
-                    if (context.mounted) {
-                      ToastService.show(context, result == 'delete' ? 'Utilisateur supprimé définitivement' : 'Utilisateur désactivé');
+            // Bouton Réactiver (si désactivé) ou Gérer (si actif)
+            if (!isActive)
+              Tooltip(
+                message: 'Réactiver cet utilisateur',
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    try {
+                      await api.reactivateUser(user['id'].toString());
+                      onDeleted();
+                      if (context.mounted) {
+                        ToastService.show(context, 'Utilisateur réactivé');
+                      }
+                    } catch (e) {
+                      if (context.mounted) ToastService.show(context, 'Erreur : $e');
                     }
-                  } catch (e) {
-                    if (context.mounted) ToastService.show(context, 'Erreur : $e');
+                  },
+                  icon: const Icon(Icons.check_circle_outline, size: 13),
+                  label: const Text('Réactiver', style: TextStyle(fontSize: 11.5)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.green.shade300,
+                    side: BorderSide(color: Colors.green.withValues(alpha: 0.35)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                  ),
+                ),
+              )
+            else
+              OutlinedButton(
+                onPressed: () async {
+                  final result = await showDialog<String>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: Sp.bg2,
+                      title: Text("Gestion de ${user['username']}", style: const TextStyle(color: Sp.t1)),
+                      content: const Text(
+                        "Voulez-vous désactiver ou supprimer définitivement cet utilisateur ?\nLa suppression définitive effacera ses playlists et historiques.",
+                        style: TextStyle(color: Sp.t2, fontSize: 13.5),
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.of(ctx).pop('cancel'), child: const Text('Annuler', style: TextStyle(color: Sp.t2))),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700),
+                          onPressed: () => Navigator.of(ctx).pop('deactivate'),
+                          child: const Text('Désactiver', style: TextStyle(color: Colors.white)),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
+                          onPressed: () => Navigator.of(ctx).pop('delete'),
+                          child: const Text('Supprimer définitivement', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (result == 'deactivate' || result == 'delete') {
+                    try {
+                      await api.deleteUser(user['id'].toString(), hardDelete: result == 'delete');
+                      onDeleted();
+                      if (context.mounted) {
+                        ToastService.show(context, result == 'delete' ? 'Utilisateur supprimé définitivement' : 'Utilisateur désactivé');
+                      }
+                    } catch (e) {
+                      if (context.mounted) ToastService.show(context, 'Erreur : $e');
+                    }
                   }
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red.shade300,
-                side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red.shade300,
+                  side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                ),
+                child: const Text('⚙️ Gérer', style: TextStyle(fontSize: 11.5)),
               ),
-              child: const Text('⚙️ Gérer', style: TextStyle(fontSize: 11.5)),
-            ),
           ],
         ],
       ),

@@ -22,7 +22,7 @@ class Album {
     title: j['title'] ?? 'Unknown Album',
     artist: _extractArtist(j),
     artistHash: _extractArtistHash(j),
-    year: j['date'] != null ? int.tryParse(j['date'].toString().substring(0, 4)) : null,
+    year: j['date'] != null && j['date'].toString().length >= 4 ? int.tryParse(j['date'].toString().substring(0, 4)) : null,
     trackCount: j['count'] ?? j['trackcount'] ?? 0,
     image: j['image'] ?? '',
   );

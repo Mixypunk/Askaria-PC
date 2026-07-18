@@ -56,8 +56,11 @@ class _SearchPageState extends State<SearchPage> {
       final albumsRaw = topResult['albums'] ?? [];
       final albums = (albumsRaw as List).map((e) => Album.fromJson(e as Map<String,dynamic>)).toList();
       if (mounted) setState(() { _songs = songs; _albums = albums; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.redAccent));
+      }
     }
   }
 
@@ -121,7 +124,7 @@ class _SearchPageState extends State<SearchPage> {
         else
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(28, 0, 28, 110),
+              padding: Sp.pagePaddingNoTop,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

@@ -4,6 +4,7 @@ import '../../main.dart';
 import '../../core/services/api_service.dart';
 import '../../core/models/album.dart';
 import '../../core/providers/player_provider.dart';
+import '../../core/service_locator.dart';
 import 'toast_service.dart';
 
 /// Dialog pour ajouter un ou plusieurs titres à une playlist.
@@ -12,13 +13,15 @@ Future<void> showAddToPlaylistDialog(
   BuildContext context, {
   required List<String> trackHashes,
 }) async {
-  final api = SwingApiService();
+  final api = sl<SwingApiService>();
   final player = context.read<PlayerProvider>();
   List<Playlist> pls = [];
   try {
     pls = await (player.getCachedPlaylists() as Future).then((v) => v.cast<Playlist>());
   } catch (_) {
-    try { pls = await api.getPlaylists(); } catch (_) {}
+    try { pls = await api.getPlaylists(); } catch (e) {
+      if (context.mounted) ToastService.show(context, 'Erreur playlists: $e');
+    }
   }
 
   if (!context.mounted) return;

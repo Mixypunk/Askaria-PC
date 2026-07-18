@@ -6,6 +6,7 @@ import 'core/services/api_service.dart';
 import 'core/services/theme_notifier.dart';
 import 'desktop/app_desktop.dart';
 import 'desktop/login_desktop.dart';
+import 'core/service_locator.dart';
 // ── Palette partagée (Match Web: --bg0, --bg1, --ac) ────────────────────
 class Sp {
   static const bg0 = Color(0xFF080808);
@@ -26,6 +27,10 @@ class Sp {
 
   static final bd  = Colors.white.withValues(alpha: 0.07);
   static final bd2 = Colors.white.withValues(alpha: 0.13);
+
+  // Layout constants
+  static const pagePadding = EdgeInsets.fromLTRB(28, 26, 28, 110);
+  static const pagePaddingNoTop = EdgeInsets.fromLTRB(28, 0, 28, 110);
 }
 
 class GText extends StatelessWidget {
@@ -64,6 +69,7 @@ class GBtn extends StatelessWidget {
 }
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  setupServiceLocator();
   
   // Configuration de la fenêtre Desktop
   await windowManager.ensureInitialized();
@@ -92,12 +98,12 @@ class _SplashWrapperState extends State<_SplashWrapper> {
   Future<void> _init() async {
     try {
       await ThemeNotifier.instance.load();
-      final api = SwingApiService();
+      final api = sl<SwingApiService>();
       await api.loadSettings();
       _logged = await api.checkAuth();
     } catch (e) {
       debugPrint('Auth error: $e');
-      _logged = SwingApiService().isLoggedIn;
+      _logged = sl<SwingApiService>().isLoggedIn;
     }
     if (mounted) setState(() => _ready = true);
   }
@@ -106,7 +112,7 @@ class _SplashWrapperState extends State<_SplashWrapper> {
     if (!_ready) return const _SplashScreen();
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => PlayerProvider()),
+        ChangeNotifierProvider.value(value: sl<PlayerProvider>()),
         ChangeNotifierProvider.value(value: ThemeNotifier.instance),
       ],
       child: _App(logged: _logged),

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -42,17 +41,27 @@ class UpdaterService {
     final tempDir = await getTemporaryDirectory();
     final tempPath = '${tempDir.path}\\Askaria-Update.exe';
     
-    final dio = Dio();
-    await dio.download(
-      url,
-      tempPath,
-      onReceiveProgress: (received, total) {
-        if (total != -1) {
-          final progress = received / total;
-          onProgress(progress);
-        }
-      },
-    );
+    final client = http.Client();
+    final request = http.Request('GET', Uri.parse(url));
+    final response = await client.send(request);
+    
+    final total = response.contentLength ?? -1;
+    int received = 0;
+    
+    final file = File(tempPath);
+    final sink = file.openWrite();
+    
+    await for (final chunk in response.stream) {
+      sink.add(chunk);
+      received += chunk.length;
+      if (total != -1) {
+        onProgress(received / total);
+      }
+    }
+    
+    await sink.flush();
+    await sink.close();
+    client.close();
 
     // Création d'un script batch pour attendre la fermeture de l'app puis lancer l'installateur
     final batPath = '${tempDir.path}\\Askaria-Update.bat';
