@@ -26,6 +26,7 @@ class _SearchPageState extends State<SearchPage> {
   List<Album> _albums = [];
   bool _loading = false;
   String _query = '';
+  String _filter = 'all'; // 'all' ou 'deezer'
   Album? _selectedAlbum;
 
   @override
@@ -47,6 +48,10 @@ class _SearchPageState extends State<SearchPage> {
     }
     setState(() { _loading = true; _query = q; });
     try {
+      if (_filter == 'deezer') {
+        final deezerSongs = await _api.searchDeezer(q);
+        if (mounted) setState(() { _songs = deezerSongs; _albums = []; _loading = false; });
+      } else {
       final results = await Future.wait([
         _api.searchSongs(q),
         _api.searchTop(q),
@@ -56,6 +61,7 @@ class _SearchPageState extends State<SearchPage> {
       final albumsRaw = topResult['albums'] ?? [];
       final albums = (albumsRaw as List).map((e) => Album.fromJson(e as Map<String,dynamic>)).toList();
       if (mounted) setState(() { _songs = songs; _albums = albums; _loading = false; });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
@@ -116,6 +122,33 @@ class _SearchPageState extends State<SearchPage> {
             ),
           ),
         ),
+
+        // Filtres de recherche
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: const Text('Askaria', style: TextStyle(fontSize: 13, color: Sp.t1)),
+                selected: _filter == 'all',
+                selectedColor: Sp.ac.withValues(alpha: 0.2),
+                backgroundColor: Sp.bg2,
+                side: BorderSide(color: _filter == 'all' ? Sp.ac : Sp.bd),
+                onSelected: (val) { if (val) setState(() { _filter = 'all'; _search(_query); }); },
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Deezer', style: TextStyle(fontSize: 13, color: Sp.t1)),
+                selected: _filter == 'deezer',
+                selectedColor: Sp.ac.withValues(alpha: 0.2),
+                backgroundColor: Sp.bg2,
+                side: BorderSide(color: _filter == 'deezer' ? Sp.ac : Sp.bd),
+                onSelected: (val) { if (val) setState(() { _filter = 'deezer'; _search(_query); }); },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
 
         if (_loading)
           const Expanded(child: Center(child: CircularProgressIndicator(color: Sp.ac)))

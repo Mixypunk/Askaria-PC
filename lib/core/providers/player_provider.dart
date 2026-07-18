@@ -38,6 +38,7 @@ class PlayerProvider extends ChangeNotifier {
   String? _error;
   bool _disposed = false;
   bool _hasScrobbled = false;
+  String? _pendingDeezerHash;
 
   // Lyrics
   String? _lyrics;
@@ -267,6 +268,27 @@ class PlayerProvider extends ChangeNotifier {
       _isLoading = state.processingState == ProcessingState.loading ||
           state.processingState == ProcessingState.buffering;
       if (state.processingState == ProcessingState.completed) {
+        final current = currentSong;
+        if (current != null && current.hash.startsWith('dz_') && _pendingDeezerHash != null) {
+          // Bascule automatique vers le fichier local à 30 secondes
+          final newSong = Song(
+            hash: _pendingDeezerHash!,
+            title: current.title,
+            artist: current.artist,
+            album: current.album,
+            albumHash: '',
+            artistHash: '',
+            duration: current.duration,
+            image: _pendingDeezerHash,
+          );
+          _queue[_currentIndex] = newSong;
+          _pendingDeezerHash = null;
+          _rebuildPlaylist(startIndex: _currentIndex).then((_) {
+            _player.seek(const Duration(seconds: 30)).then((_) => _player.play());
+          });
+          return;
+        }
+
         // Fin de la playlist complète — on délègue à next() qui gère
         // le rebouclage (index 0 si repeat-all, rien si repeat-off).
         if (_repeatMode == PlayerRepeatMode.all) {
@@ -319,6 +341,12 @@ class PlayerProvider extends ChangeNotifier {
   // Construit un AudioSource pour un titre (sync — utilise getStreamUrl)
   // Si le fichier est stocké localement (offline), utilise le chemin local
   AudioSource _buildSource(Song song) {
+    if (song.hash.startsWith('dz_') && song.filepath != null) {
+      return AudioSource.uri(
+        Uri.parse(song.filepath!),
+        tag: song.hash,
+      );
+    }
     final localPath = song.filepath;
     final isLocal   = localPath != null &&
         (localPath.startsWith('/') || localPath.startsWith('file://')) &&
@@ -376,6 +404,14 @@ class PlayerProvider extends ChangeNotifier {
       }
       if (requestId != _playRequestId) return;
       _addToHistory(song);
+      
+      if (song.hash.startsWith('dz_')) {
+        _pendingDeezerHash = null;
+        _api.downloadDeezerTrack(song.hash.substring(3)).then((hash) {
+          if (hash != null) _pendingDeezerHash = hash;
+        });
+      }
+      
       await _player.play();
       _fetchLyrics();
       _fetchColors();

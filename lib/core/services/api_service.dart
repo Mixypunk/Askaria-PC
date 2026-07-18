@@ -345,6 +345,33 @@ class SwingApiService {
     return {};
   }
 
+  Future<List<Song>> searchDeezer(String query) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/downloader/deezer/search').replace(
+        queryParameters: {'q': query, 'limit': '20'},
+      );
+      final response = await _authedGet(uri);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['data'] != null) {
+          return (data['data'] as List).map((e) => Song.fromDeezer(e)).toList();
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<String?> downloadDeezerTrack(String deezerId) async {
+    try {
+      final response = await _authedPost(Uri.parse('$_baseUrl/downloader/deezer/$deezerId'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['hash'];
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // ── ALBUMS ─────────────────────────────────────────────────────────────
   Future<List<Album>> getAlbums({int start = 0, int limit = 500}) async {
     try {
